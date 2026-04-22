@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       allowed_countries: ["FR", "BE", "CH", "LU", "DE", "ES", "IT", "NL", "AT", "PT"],
     },
     shipping_options: [STANDARD_SHIPPING],
-    metadata: { orderId },
+    metadata: { orderId, productSlug: items[0]?.productId ?? "" },
     success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${origin}/shop`,
     locale: "fr",

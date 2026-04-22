@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getProduct, getAllProducts, formatPrice } from "@/lib/products-data";
 import ProductConfigurator from "./ProductConfigurator";
 import ProductImage from "@/components/ProductImage";
+import ReviewSection from "@/components/ReviewSection";
 
 export function generateStaticParams() {
   return getAllProducts().map(p => ({ slug: p.slug }));
@@ -121,6 +122,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </ul>
           </div>
         </div>
+
+        {/* Reviews */}
+        <ReviewSection productSlug={slug} />
 
         {/* Related products */}
         {related.length > 0 && (

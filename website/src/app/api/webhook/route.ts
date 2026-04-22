@@ -49,6 +49,9 @@ export async function POST(request: Request) {
   const orderNumber = session.metadata?.orderId
     ?? `AXN-${Date.now().toString(36).toUpperCase()}`;
 
+  const customerEmail = session.customer_details?.email ?? "";
+  const productSlug   = session.metadata?.productSlug ?? "";
+
   try {
     const { env } = getRequestContext();
     await env.DB.prepare(`
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
       orderNumber,
       "confirmed",
       session.payment_status,
-      session.customer_details?.email ?? "",
+      customerEmail,
       session.customer_details?.name  ?? "",
       session.amount_total            ?? 0,
       (session.currency ?? "eur").toUpperCase(),
@@ -77,6 +80,34 @@ export async function POST(request: Request) {
     // Log but still return 200 — order data is safe in Stripe Dashboard.
     // Stripe would retry on 5xx, causing duplicate inserts.
     console.error("D1 insert failed:", dbErr);
+  }
+
+  // Schedule a review request email 7 days after purchase
+  if (process.env.RESEND_API_KEY && customerEmail) {
+    const scheduledAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "https://axionpad.com";
+    const reviewUrl = productSlug
+      ? `${origin}/shop/${productSlug}#reviews`
+      : `${origin}/shop`;
+
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "AxionPad <noreply@axionpad.com>",
+        to: customerEmail,
+        subject: "Votre avis nous intéresse !",
+        scheduledAt,
+        html: `<p>Bonjour,</p>
+<p>Nous espérons que vous êtes satisfait(e) de votre commande AxionPad !</p>
+<p>Votre retour aide d'autres passionnés à faire le bon choix. Cela ne prend qu'une minute.</p>
+<p><a href="${reviewUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;">Laisser un avis →</a></p>
+<p style="color:#71717a;font-size:12px;">Vous recevez cet e-mail car vous avez passé commande sur axionpad.com.</p>`,
+      }),
+    }).catch(() => null); // fire-and-forget, don't fail the webhook
   }
 
   return NextResponse.json({ received: true });
