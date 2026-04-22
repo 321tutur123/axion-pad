@@ -34,3 +34,9 @@ desktop.ini
 # Env
 .env
 .env.local
+
+# Bloquer les fichiers CAD lourds
+*.step
+*.stp
+*.SLDPRT
+*.f3z

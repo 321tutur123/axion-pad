@@ -1,0 +1,461 @@
+================================================================================
+  AXION PAD — RÉCAPITULATIF COMPLET DU PROJET
+  Généré le : 06 avril 2026
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  VUE D'ENSEMBLE
+────────────────────────────────────────────────────────────────────────────────
+
+Le projet Axion Pad se compose de deux parties distinctes :
+
+  1. APPLICATION DE CONFIGURATION (Java / JavaFX)
+     → Logiciel desktop pour configurer le clavier macro Axion Pad
+     → Dossier : src/
+
+  2. SITE E-COMMERCE (Node.js / HTML-CSS-JS)
+     → Site marchand complet pour vendre l'Axion Pad
+     → Dossier : website/
+
+
+================================================================================
+  PARTIE 1 — APPLICATION JAVA (Axion Pad Configurator)
+================================================================================
+
+  DESCRIPTION
+  ───────────
+  Application desktop JavaFX permettant de configurer le clavier macro Axion Pad
+  (microcontrôleur RP2040 + firmware CircuitPython). L'utilisateur peut assigner
+  des actions à chacune des 12 touches et 4 potentiomètres, puis exporter la
+  configuration vers le périphérique.
+
+  STACK TECHNIQUE
+  ───────────────
+  • Java 17
+  • JavaFX 21
+  • Maven (build & packaging)
+  • jSerialComm 2.11.0 (communication série USB)
+  • Gson 2.10.1 (persistance JSON)
+  • JNA (Java Native Access — hook clavier Windows & API audio WASAPI)
+
+  COMPILATION & LANCEMENT
+  ────────────────────────
+  Développement   : mvn javafx:run
+  Build JAR       : mvn clean package
+  Build .exe      : scripts\build-windows.bat
+  Livrable .exe   : dist\windows\AxionPadConfigurator\AxionPadConfigurator.exe
+  Archive ZIP     : dist\windows\AxionPadConfigurator-1.0.0-windows.zip
+
+  ARCHITECTURE — PATTERN MVC
+  ───────────────────────────
+  • Pas de fichiers FXML — toute l'UI est construite programmatiquement
+  • MainWindow gère le routage de pages via showPage(id)
+  • Pattern singleton pour ConfigService, SettingsService, SerialService,
+    WindowsVolumeService, KeyHookService
+
+  FICHIERS SOURCE
+  ───────────────
+
+  src/main/java/com/axionpad/
+
+  ┌─ Entrée
+  │   Main.java                   Point d'entrée JavaFX
+  │   AxionPadApp.java            Application principale — System Tray, lifecycle
+  │   StartupRegistryHelper.java  Démarrage Windows (registre)
+  │
+  ├─ view/
+  │   MainWindow.java             Fenêtre principale — titlebar, sidebar, routing
+  │   PortDialog.java             Dialogue sélection port série
+  │
+  ├─ controller/
+  │   KeysController.java         Grille 12 touches — config actions
+  │                               Modes : KEYBOARD / APP / MUTE / MEDIA / AUTOHOTKEY
+  │                               Recherche d'apps installées (scan Start Menu PowerShell)
+  │   SlidersController.java      4 potentiomètres — mapping canaux audio (DEEJ)
+  │   SoundbarController.java     Visualisation live des valeurs série (ProgressBar)
+  │   ExportController.java       Génération et export code.py + deej-config.yaml
+  │   SettingsController.java     Paramètres UI — langue, police, thème, fond d'écran
+  │   SimulatorController.java    Simulation logicielle du pad (sans matériel)
+  │   PresetService.java          4 presets intégrés : Streaming, Gaming, Productivité, DAW
+  │   Controllers.java            Interface/registre des controllers
+  │
+  ├─ model/
+  │   KeyConfig.java              Config d'une touche (ActionType, modifiers, key, etc.)
+  │                               Génère les lignes Python pour code.py
+  │   SliderConfig.java           Config d'un potentiomètre (label, canal DEEJ)
+  │   PadConfig.java              Config complète du pad — génère code.py & deej-config.yaml
+  │                               Gère les presets utilisateur (snapshots JSON)
+  │   AppSettings.java            Préférences UI — langue, police, thème, wallpaperPath
+  │
+  └─ service/
+      ConfigService.java          Persistence JSON (~/.axionpad/config.json)
+                                  Export firmware — flashage direct sur CIRCUITPY
+                                  Gestion des presets utilisateur (add/apply/delete)
+      SettingsService.java        Persistence paramètres (~/.axionpad/settings.json)
+      SerialService.java          Communication USB série (jSerialComm, 9600 baud)
+                                  Parseur format DEEJ "v1|v2|v3|v4\n"
+                                  Détection auto CircuitPython / RP2040
+      WindowsVolumeService.java   Contrôle audio Windows via WASAPI (COM/JNA)
+                                  Mute master, micro, sons système, processus spécifique
+                                  Contrôle volume par application (DEEJ-like)
+      KeyHookService.java         Hook clavier global Windows (WH_KEYBOARD_LL/JNA)
+                                  Intercepte F13–F24 envoyés par le pad
+                                  Exécute : raccourcis Robot, launch app, toggleMute,
+                                            media keys SendInput, scripts AutoHotkey
+      AppLauncherService.java     Lancement d'applications cross-platform
+      I18n.java                   Internationalisation FR/EN (clés statiques)
+
+  RESSOURCES
+  ──────────
+  src/main/resources/com/axionpad/
+  ├─ css/dark.css         Thème glassmorphism — 628 lignes
+  │                       Thèmes : Space / Purple / Ocean / Dark /
+  │                                Crimson / Emerald / Sunset
+  │                       Fond personnalisé : image importée par l'utilisateur
+  ├─ firmware/code.py     Firmware CircuitPython embarqué dans le JAR
+  └─ icons/               Icônes application et system tray
+
+  FLUX DE DONNÉES
+  ───────────────
+  Série → UI :
+    SerialService.readLoop() [thread BG]
+    → parse "v1|v2|v3|v4\n"
+    → Platform.runLater() → SoundbarController.updateSliderValues()
+    → WindowsVolumeService.applySliderValues() [thread COM]
+
+  Touches → Actions :
+    RP2040 → USB HID → KeyHookService (WH_KEYBOARD_LL)
+    → F13-F24 interceptés → executeAction(KeyConfig)
+    → KEYBOARD : Robot.keyPress/keyRelease
+    → APP      : ProcessBuilder cmd /c start
+    → MUTE     : WindowsVolumeService.toggleMute(target)
+    → MEDIA    : User32.SendInput (VK_VOLUME_*, VK_MEDIA_*)
+    → AHK      : ProcessBuilder cmd /c start script.ahk
+
+  Config → Firmware :
+    PadConfig.generateCodePy() → ConfigService.exportCodePy()
+    → copie sur lecteur CIRCUITPY (auto-détection A:-Z:)
+    → CircuitPython redémarre automatiquement
+
+  CORRECTIONS APPORTÉES (session du 06/04/2026)
+  ───────────────────────────────────────────────
+  1. Bug MUTE — matchProcess() comparait "discord" vs "Discord.exe"
+     → Fix : normalisation du suffixe .exe des deux côtés
+  2. Bug AUTOHOTKEY — case manquant dans KeyHookService.executeAction()
+     → Fix : ajout du case AUTOHOTKEY → executeAhk()
+  3. Nouveaux thèmes — Crimson, Emerald, Sunset (CSS + SettingsController)
+  4. Fond d'écran personnalisé — import image via FileChooser,
+     appliqué via BackgroundImage JavaFX dans MainWindow.applyBgStyle()
+  5. Recherche d'apps — champ de recherche dans la config touches APP
+     → filtre 30+ apps connues + scan PowerShell du Menu Démarrer
+
+  PERSISTANCE
+  ───────────
+  ~/.axionpad/config.json      Configuration touches et potentiomètres
+  ~/.axionpad/settings.json    Préférences UI (thème, langue, police, wallpaper)
+  ~/.axionpad/debug.log        Log de débogage (opérations de sauvegarde)
+
+
+================================================================================
+  PARTIE 2 — SITE E-COMMERCE (Axion Pad Store)
+================================================================================
+
+  DESCRIPTION
+  ───────────
+  Site marchand complet et autonome pour vendre l'Axion Pad en ligne.
+  Inclut catalogue produits, panier, tunnel d'achat, comptes clients,
+  paiement Stripe, suivi de commandes et back-office admin.
+
+  STACK TECHNIQUE
+  ───────────────
+  Backend  : Node.js 22 + Express 4
+  Base de données : SQLite via better-sqlite3 v11 (synchrone, sans ORM)
+  Auth     : JWT (jsonwebtoken) + bcryptjs
+  Paiement : Stripe (mode test + webhooks)
+  Email    : Nodemailer (SMTP)
+  Sécurité : Helmet, CORS, express-rate-limit
+  Frontend : HTML5 / CSS3 / JavaScript vanilla (responsive, dark theme)
+
+  DÉMARRAGE
+  ─────────
+  cd website
+  npm install
+  cp .env.example .env    ← renseigner les clés API
+  npm start               ← http://localhost:3000
+
+  Admin par défaut :
+    Email    : admin@axionpad.com
+    Mot de passe : Admin1234!
+
+  STRUCTURE DES FICHIERS
+  ──────────────────────
+
+  website/
+  ├─ server.js              Serveur Express — middlewares, routes, SPA fallback
+  ├─ package.json           Dépendances npm
+  ├─ .env / .env.example    Variables d'environnement
+  ├─ axionpad.db            Base de données SQLite (auto-créée au 1er démarrage)
+  │
+  ├─ db/
+  │   database.js           Initialisation SQLite — 8 tables, données de départ
+  │
+  ├─ middleware/
+  │   auth.js               authMiddleware / adminMiddleware / optionalAuth
+  │
+  ├─ routes/
+  │   auth.js               Authentification et profil utilisateur
+  │   products.js           Catalogue et avis produits
+  │   cart.js               Panier (invité + connecté)
+  │   orders.js             Commandes et webhook Stripe
+  │   admin.js              Back-office administrateur
+  │
+  └─ public/                Frontend statique servi par Express
+      ├─ index.html         Landing page commerciale
+      ├─ shop.html          Catalogue avec filtres et tri
+      ├─ product.html       Fiche produit détaillée
+      ├─ cart.html          Panier
+      ├─ checkout.html      Tunnel d'achat 3 étapes
+      ├─ login.html         Connexion
+      ├─ register.html      Inscription
+      ├─ account.html       Espace client
+      ├─ admin.html         Back-office admin
+      ├─ css/
+      │   style.css         Système de design complet (~1276 lignes)
+      │   pages.css         Styles spécifiques par page (~1463 lignes)
+      └─ js/
+          api.js            Client REST complet (toutes les routes API)
+          auth.js           Gestion JWT, état de connexion, navbar dynamique
+          cart.js           État panier, sidebar animée, badge count
+          app.js            Utilitaires globaux (toast, modal, formatage)
+
+  BASE DE DONNÉES — 8 TABLES
+  ──────────────────────────
+  users             Comptes clients et admin (email, password hash, rôle)
+  addresses         Adresses de livraison par utilisateur (multi-adresses)
+  products          Catalogue produits (prix, stock, images, specs JSON)
+  product_variants  Variantes par produit (switches, couleurs, etc.)
+  cart_items        Panier persisté (session invité ou user_id)
+  orders            Commandes avec statut, montants, infos livraison
+  order_items       Lignes de commande (snapshot des prix à l'achat)
+  coupons           Codes promo (fixe ou %, min commande, nb utilisations)
+  reviews           Avis clients (1-5 étoiles, nécessite achat vérifié)
+  wishlists         Liste de souhaits par utilisateur
+
+  DONNÉES INITIALES (seed)
+  ────────────────────────
+  Produits :
+    • Axion Pad Standard    79,99 € (stock: 50)  — Featured
+    • Axion Pad Pro        129,99 € (stock: 20)  — Featured, 3 variantes switches
+    • Câble USB-C Tressé    14,99 € (stock: 100)
+    • Set Keycaps Blanc     24,99 € (stock: 75)
+    • Deskmat XXL           34,99 € (stock: 40)
+
+  Variantes Axion Pad Pro :
+    • Gateron Yellow (Linear)
+    • Gateron Blue (Clicky)
+    • Gateron Brown (Tactile)
+
+  Coupon : LAUNCH10 → -10% (commande min. 50 €)
+
+  ROUTES API COMPLÈTES
+  ────────────────────
+
+  Auth
+    POST   /api/auth/register          Inscription
+    POST   /api/auth/login             Connexion → JWT
+    GET    /api/auth/me                Profil courant
+    PUT    /api/auth/me                Modifier profil
+    PUT    /api/auth/password          Changer mot de passe
+    GET    /api/auth/addresses         Liste adresses
+    POST   /api/auth/addresses         Ajouter adresse
+    PUT    /api/auth/addresses/:id     Modifier adresse
+    DELETE /api/auth/addresses/:id     Supprimer adresse
+
+  Produits
+    GET    /api/products               Liste (filtres: category, search, featured)
+    GET    /api/products/:slug         Détail produit + variantes + avis
+    GET    /api/products/:id/reviews   Avis d'un produit
+    POST   /api/products/:id/reviews   Soumettre un avis (achat requis)
+    GET    /api/categories             Catégories avec compteur
+
+  Panier
+    GET    /api/cart                   Contenu du panier + total
+    POST   /api/cart                   Ajouter un article
+    PUT    /api/cart/:id               Modifier quantité
+    DELETE /api/cart/:id               Retirer un article
+    DELETE /api/cart                   Vider le panier
+    POST   /api/cart/coupon            Appliquer un code promo
+    POST   /api/cart/merge             Fusionner panier invité → compte
+
+  Commandes
+    POST   /api/orders                 Créer commande (Stripe PaymentIntent)
+    GET    /api/orders                 Mes commandes
+    GET    /api/orders/:number         Détail commande
+    POST   /api/orders/:number/cancel  Annuler (si pending/confirmed)
+    POST   /api/stripe/webhook         Webhook Stripe → confirmer paiement
+
+  Admin (réservé rôle admin)
+    GET    /api/admin/stats            KPIs dashboard
+    GET    /api/admin/orders           Toutes les commandes (filtres, pagination)
+    GET    /api/admin/orders/:id       Détail commande
+    PUT    /api/admin/orders/:id/status    Changer statut
+    PUT    /api/admin/orders/:id/tracking  Numéro de suivi
+    GET    /api/admin/products         Liste produits + stock
+    POST   /api/admin/products         Créer produit
+    PUT    /api/admin/products/:id     Modifier produit
+    DELETE /api/admin/products/:id     Désactiver produit (soft delete)
+    GET    /api/admin/users            Liste clients
+    GET    /api/admin/coupons          Liste codes promo
+    POST   /api/admin/coupons          Créer code promo
+
+  LOGIQUE MÉTIER
+  ──────────────
+  Numéro de commande : AXP-YYYYMMDD-XXXX (ex: AXP-20260406-0001)
+
+  Frais de livraison :
+    Standard  5,99 €  (< 100 €)
+    Express  12,99 €  (< 100 €)
+    Gratuit   0,00 €  (≥ 100 €)
+
+  Statuts commande : pending → confirmed → shipped → delivered
+                               ↓              ↓
+                           cancelled      (irréversible)
+
+  Panier invité : identifié par X-Session-Id (localStorage)
+  Panier connecté : lié au user_id
+  Fusion au login : POST /api/cart/merge
+
+  PAGES FRONTEND
+  ──────────────
+  index.html      Hero avec mockup CSS du pad, specs, features, produits API,
+                  témoignages, CTA, footer 4 colonnes
+  shop.html       Filtres (catégorie, prix, stock), tri, grille responsive,
+                  pagination, recherche
+  product.html    Galerie images, sélecteur de variantes, onglets
+                  (Description / Specs / Avis), produits similaires
+  cart.html       Table articles, contrôle quantités, code promo, récapitulatif,
+                  état "panier vide" illustré
+  checkout.html   Étape 1: adresse livraison + choix transporteur
+                  Étape 2: paiement Stripe Card Element
+                  Étape 3: confirmation + offre création compte invité
+  login.html      Formulaire email/password, validation, redirect post-login
+  register.html   Prénom/nom, email, password avec indicateur de force, CGU
+  account.html    Tableau de bord (stats), commandes avec détail inline,
+                  carnet d'adresses, paramètres du compte
+  admin.html      Stats KPI, gestion commandes (filtres + changement statut),
+                  gestion produits (CRUD modal), clients, codes promo
+
+
+================================================================================
+  ARBORESCENCE COMPLÈTE DU PROJET
+================================================================================
+
+Axion-pad-main/
+│
+├─ CLAUDE.md                         Instructions pour Claude Code
+├─ RECAP_PROJET.txt                  CE FICHIER
+├─ README.md                         Documentation générale
+├─ pom.xml                           Config Maven (Java 17, JavaFX 21)
+├─ .gitignore
+│
+├─ scripts/
+│   ├─ build-windows.bat             Build .exe Windows (Maven + jpackage)
+│   └─ build-unix.sh                 Build .dmg/.deb (Mac/Linux)
+│
+├─ src/main/
+│   ├─ java/com/axionpad/            Code source Java (24 fichiers)
+│   │   ├─ Main.java
+│   │   ├─ AxionPadApp.java
+│   │   ├─ StartupRegistryHelper.java
+│   │   ├─ controller/               7 controllers + PresetService
+│   │   ├─ model/                    4 modèles (KeyConfig, SliderConfig, PadConfig, AppSettings)
+│   │   ├─ service/                  8 services
+│   │   └─ view/                     2 vues (MainWindow, PortDialog)
+│   └─ resources/com/axionpad/
+│       ├─ css/dark.css              Thème glassmorphism (628 lignes)
+│       ├─ firmware/code.py          Firmware CircuitPython embarqué
+│       └─ icons/                    Icônes
+│
+├─ dist/
+│   └─ windows/
+│       ├─ AxionPadConfigurator/     Application portable (JRE inclus)
+│       │   └─ AxionPadConfigurator.exe
+│       └─ AxionPadConfigurator-1.0.0-windows.zip   (~72 Mo)
+│
+└─ website/                          Site e-commerce
+    ├─ server.js                     Serveur Express
+    ├─ package.json
+    ├─ .env / .env.example
+    ├─ axionpad.db                   Base SQLite (auto-créée)
+    ├─ README.md
+    ├─ db/database.js                Init DB + seed
+    ├─ middleware/auth.js
+    ├─ routes/
+    │   ├─ auth.js
+    │   ├─ products.js
+    │   ├─ cart.js
+    │   ├─ orders.js
+    │   └─ admin.js
+    └─ public/
+        ├─ index.html
+        ├─ shop.html
+        ├─ product.html
+        ├─ cart.html
+        ├─ checkout.html
+        ├─ login.html
+        ├─ register.html
+        ├─ account.html
+        ├─ admin.html
+        ├─ css/
+        │   ├─ style.css             (~1276 lignes)
+        │   └─ pages.css             (~1463 lignes)
+        └─ js/
+            ├─ api.js               Client REST
+            ├─ auth.js              Gestion JWT
+            ├─ cart.js              État panier
+            └─ app.js               Utilitaires globaux
+
+
+================================================================================
+  STATISTIQUES
+================================================================================
+
+  Application Java
+  ────────────────
+  Fichiers Java           : 24
+  Lignes de code Java     : ~4 880
+  Lignes CSS              : 628
+  Thèmes visuels          : 7 (Space, Purple, Ocean, Dark, Crimson, Emerald, Sunset)
+  Actions touches         : 5 (Keyboard, App, Mute, Media, AutoHotkey)
+  Presets intégrés        : 4 (Streaming, Gaming, Productivité, DAW)
+
+  Site E-Commerce
+  ───────────────
+  Fichiers backend        : 8 (server + 5 routes + db + middleware)
+  Pages frontend          : 9
+  Lignes CSS frontend     : ~2 740
+  Lignes JS frontend      : ~870
+  Tables base de données  : 8 (+ 10 index)
+  Routes API              : 28
+  Produits initiaux       : 5
+  Variantes               : 3 (switches Axion Pad Pro)
+
+
+================================================================================
+  NOTES DE SÉCURITÉ (pour mise en production)
+================================================================================
+
+  OBLIGATOIRE avant déploiement public :
+
+  1. Changer JWT_SECRET dans .env (clé longue et aléatoire)
+  2. Configurer les vraies clés Stripe (sk_live_...)
+  3. Configurer SMTP pour les emails de confirmation
+  4. Activer HTTPS (certificat SSL via Let's Encrypt ou Cloudflare)
+  5. Configurer les variables NODE_ENV=production
+  6. Sauvegarder régulièrement axionpad.db
+  7. Mettre à jour le mot de passe admin par défaut
+  8. Configurer le webhook Stripe avec STRIPE_WEBHOOK_SECRET
+
+================================================================================
+  FIN DU RÉCAPITULATIF
+================================================================================
