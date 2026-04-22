@@ -466,39 +466,7 @@
         "12 × Keycaps PBT",
         "Outil de retrait"
       ]
-    },
-    {
-      "id": "support-bureau",
-      "slug": "support-bureau",
-      "name": "Support Bureau",
-      "tagline": "Support inclinable aluminium pour Axion Pad",
-      "description": "Support inclinable aluminium. Angles 15° et 30°.",
-      "longDescription": "Support en aluminium brossé compatible avec tous les modèles Axion Pad. Deux positions d'inclinaison (15° et 30°) pour un confort optimal.",
-      "price": 1899,
-      "category": "accessories",
-      "stock": 18,
-      "imagePath": "/images/products/support-bureau.jpg",
-      "options": [
-        {
-          "id": "support-color",
-          "label": "Finition",
-          "type": "color",
-          "choices": [
-            { "value": "silver", "label": "Aluminium brossé", "color": "#c0c0c0", "available": true },
-            { "value": "black",  "label": "Aluminium noir",   "color": "#1a1a1a", "available": true }
-          ]
-        }
-      ],
-      "specs": [
-        { "label": "Matériau", "value": "Aluminium 6061 brossé" },
-        { "label": "Angles",   "value": "15° / 30° (ajustable)" },
-        { "label": "Compat.",  "value": "Tous modèles Axion Pad" },
-        { "label": "Poids",    "value": "85 g" }
-      ],
-      "includes": [
-        "1 × Support bureau",
-        "2 × Vis de fixation"
-      ]
     }
+    
   ]
 }
