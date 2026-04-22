@@ -5,4 +5,4 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding      = "DB"            # must match env.d.ts CloudflareEnv.DB
 database_name = "axionpad-db"
-database_id  = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id  = "f62ca889-9221-4ba5-9980-185b588997be"
