@@ -1,0 +1,8 @@
+name                = "axion-pad"
+compatibility_date  = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding      = "DB"            # must match env.d.ts CloudflareEnv.DB
+database_name = "axionpad-db"
+database_id  = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
