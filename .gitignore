@@ -1,0 +1,36 @@
+# Java / Maven
+target/
+*.class
+*.jar
+dist/
+
+# Node
+node_modules/
+.next/
+.nuxt/
+out/
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# Archives
+*.zip
+*.tar.gz
+
+# Env
+.env
+.env.local
