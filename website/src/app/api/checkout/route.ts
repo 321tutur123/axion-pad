@@ -7,23 +7,11 @@ export const runtime = "edge";
 const STANDARD_SHIPPING: Stripe.Checkout.SessionCreateParams.ShippingOption = {
   shipping_rate_data: {
     type: "fixed_amount",
-    fixed_amount: { amount: 599, currency: "eur" },
+    fixed_amount: { amount: 500, currency: "eur" },
     display_name: "Livraison Standard",
     delivery_estimate: {
       minimum: { unit: "business_day", value: 5 },
       maximum: { unit: "business_day", value: 7 },
-    },
-  },
-};
-
-const EXPRESS_SHIPPING: Stripe.Checkout.SessionCreateParams.ShippingOption = {
-  shipping_rate_data: {
-    type: "fixed_amount",
-    fixed_amount: { amount: 1299, currency: "eur" },
-    display_name: "Livraison Express",
-    delivery_estimate: {
-      minimum: { unit: "business_day", value: 1 },
-      maximum: { unit: "business_day", value: 2 },
     },
   },
 };
@@ -98,7 +86,7 @@ export async function POST(request: Request) {
     shipping_address_collection: {
       allowed_countries: ["FR", "BE", "CH", "LU", "DE", "ES", "IT", "NL", "AT", "PT"],
     },
-    shipping_options: [STANDARD_SHIPPING, EXPRESS_SHIPPING],
+    shipping_options: [STANDARD_SHIPPING],
     metadata: { orderId },
     success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${origin}/shop`,
