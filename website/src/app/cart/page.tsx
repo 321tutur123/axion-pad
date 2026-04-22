@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart, getShipping, FREE_SHIPPING_THRESHOLD } from "@/store/cart";
+import CheckoutButton from "@/components/CheckoutButton";
 
 export default function CartPage() {
   const { items, coupon, loading, fetch, update, remove, clear, applyCoupon, removeCoupon, subtotal, count } = useCart();
@@ -152,9 +153,7 @@ export default function CartPage() {
               )}
             </div>
 
-            <Link href="/checkout" className="block w-full py-3.5 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-semibold text-center transition-all hover:scale-[1.02]">
-              Passer la commande →
-            </Link>
+            <CheckoutButton className="block w-full py-3.5 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-semibold text-center transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100" />
             <p className="text-center text-xs text-zinc-600">🔒 Paiement 100% sécurisé</p>
           </div>
         </div>
