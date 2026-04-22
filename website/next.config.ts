@@ -9,12 +9,12 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${API_URL}/api/:path*`,
-      },
-    ];
+    // fallback: Next.js API routes are checked first; only unmatched paths are proxied
+    return {
+      fallback: [
+        { source: "/api/:path*", destination: `${API_URL}/api/:path*` },
+      ],
+    };
   },
 };
 

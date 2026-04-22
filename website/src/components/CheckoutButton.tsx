@@ -23,6 +23,8 @@ export default function CheckoutButton({ className, label = "Payer avec Stripe â
         body: JSON.stringify({
           items: items.map(i => ({
             productId:    i.productId,
+            name:         i.name,
+            price:        Math.round((i.price ?? 0) * 100), // euros â†’ cents
             quantity:     i.quantity ?? 1,
             variantLabel: i.variantLabel,
           })),
