@@ -100,6 +100,7 @@ npx wrangler pages deploy website --project-name axion-pad
 | Hosting | Cloudflare Pages |
 | CI/CD | GitHub Actions |
 
+Thanks for reading
 ---
 
 ## License
