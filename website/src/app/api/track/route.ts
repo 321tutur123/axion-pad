@@ -3,8 +3,6 @@ import Stripe from "stripe";
 
 export const runtime = "edge";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 const PAYMENT_STATUS_MAP: Record<string, string> = {
   paid:                "confirmed",
   unpaid:              "pending",
@@ -12,6 +10,7 @@ const PAYMENT_STATUS_MAP: Record<string, string> = {
 };
 
 export async function GET(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get("order")?.trim();
   const email     = searchParams.get("email")?.trim().toLowerCase();

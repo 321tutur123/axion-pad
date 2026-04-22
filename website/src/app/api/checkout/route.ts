@@ -4,8 +4,6 @@ import { getProduct } from "@/lib/products-data";
 
 export const runtime = "edge";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 const STANDARD_SHIPPING: Stripe.Checkout.SessionCreateParams.ShippingOption = {
   shipping_rate_data: {
     type: "fixed_amount",
@@ -39,6 +37,7 @@ interface CheckoutItem {
 }
 
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   let items: CheckoutItem[];
   try {
     ({ items } = (await request.json()) as { items: CheckoutItem[] });
