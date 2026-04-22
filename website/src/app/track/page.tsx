@@ -67,7 +67,7 @@ function TrackContent() {
     const t = setTimeout(() => ctrl.abort(), 6000);
     try {
       const res = await fetch(
-        `/api/orders/${encodeURIComponent(num.trim())}?email=${encodeURIComponent(mail.trim())}`,
+        `/api/track?order=${encodeURIComponent(num.trim())}&email=${encodeURIComponent(mail.trim())}`,
         { signal: ctrl.signal }
       );
       if (res.status === 404) { setError("Commande introuvable. Vérifiez le numéro et l'email."); return; }
@@ -115,7 +115,7 @@ function TrackContent() {
             <input
               value={orderNumber}
               onChange={e => setOrderNumber(e.target.value)}
-              placeholder="AXP-20260421-0001"
+              placeholder="cs_live_xxxxxxxxxxxxxxxxxxxxxxxx"
               className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-700 focus:outline-none focus:border-violet-500 font-mono text-sm transition-colors"
             />
           </div>
