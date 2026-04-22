@@ -72,9 +72,6 @@ export interface Product {
   images?: string[];
   stock?: number;
   inStock?: boolean;
-  rating?: { average: number; count: number };
-  rating_average?: number;
-  rating_count?: number;
 }
 
 export interface CartItem {

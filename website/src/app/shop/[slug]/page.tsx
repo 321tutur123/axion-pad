@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, getAllProducts } from "@/lib/products-data";
+import { getProduct, getAllProducts, formatPrice } from "@/lib/products-data";
 import ProductConfigurator from "./ProductConfigurator";
+import ProductImage from "@/components/ProductImage";
 
 export function generateStaticParams() {
   return getAllProducts().map(p => ({ slug: p.slug }));
@@ -14,21 +15,6 @@ function productEmoji(slug: string): string {
   if (slug.includes("pcb"))     return "🔬";
   if (slug.includes("kit"))     return "🔧";
   return "⌨️";
-}
-
-function Stars({ value, count }: { value: number; count: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex gap-0.5">
-        {[1,2,3,4,5].map(i => (
-          <svg key={i} className={`w-4 h-4 ${i <= Math.round(value) ? "text-yellow-400" : "text-zinc-700"}`} fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-          </svg>
-        ))}
-      </div>
-      <span className="text-sm text-zinc-400">{value} <span className="text-zinc-600">({count} avis)</span></span>
-    </div>
-  );
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -57,10 +43,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         {/* Hero */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 items-start mb-24">
 
-          {/* Visuel */}
+          {/* Visual */}
           <div className="lg:sticky lg:top-24">
-            <div className="aspect-square rounded-3xl flex items-center justify-center text-9xl bg-gradient-to-br from-violet-900/30 via-violet-950/20 to-zinc-950 border border-white/5 shadow-2xl shadow-violet-950/30">
-              {emoji}
+            <div className="relative aspect-square rounded-3xl overflow-hidden bg-gradient-to-br from-violet-900/30 via-violet-950/20 to-zinc-950 border border-white/5 shadow-2xl shadow-violet-950/30">
+              {/* Drop {slug}.jpg into public/images/products/ — ProductImage handles fallback */}
+              <ProductImage
+                src={product.imagePath}
+                alt={product.name}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-contain p-8"
+                priority
+                fallback={
+                  <div className="absolute inset-0 flex items-center justify-center text-9xl">
+                    {emoji}
+                  </div>
+                }
+              />
             </div>
             {!product.inStock && (
               <p className="mt-4 text-center text-xs text-zinc-600 border border-white/5 rounded-xl py-2.5 bg-white/[0.02]">
@@ -69,7 +67,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             )}
           </div>
 
-          {/* Info + configurateur */}
+          {/* Info + configurator */}
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {product.badge && (
@@ -83,13 +81,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
 
             <h1 className="text-4xl font-bold text-white mb-2 leading-tight">{product.name}</h1>
-            <p className="text-zinc-400 text-lg mb-5">{product.tagline}</p>
-
-            {product.rating.count > 0 && (
-              <div className="mb-6">
-                <Stars value={product.rating.average} count={product.rating.count} />
-              </div>
-            )}
+            <p className="text-zinc-400 text-lg mb-8">{product.tagline}</p>
 
             <p className="text-zinc-300 leading-relaxed text-[15px] mb-8">{product.longDescription}</p>
 
@@ -97,7 +89,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        {/* Specs + contenu */}
+        {/* Specs + box contents */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-24">
           <div>
             <h2 className="text-white font-semibold text-base mb-4 flex items-center gap-2">
@@ -130,7 +122,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        {/* Produits similaires */}
+        {/* Related products */}
         {related.length > 0 && (
           <div>
             <h2 className="text-zinc-600 text-xs uppercase tracking-widest mb-5">Produits similaires</h2>
@@ -145,7 +137,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   <div className="text-white text-sm font-medium group-hover:text-violet-300 transition-colors leading-tight mb-1">
                     {p.name}
                   </div>
-                  <div className="text-zinc-500 text-xs">{p.basePrice.toFixed(2)} €</div>
+                  <div className="text-zinc-500 text-xs">{formatPrice(p.price)}</div>
                 </Link>
               ))}
             </div>

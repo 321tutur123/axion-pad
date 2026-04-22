@@ -10,7 +10,11 @@
       "Bash(npm list *)",
       "Bash(npm run *)",
       "Bash(dir \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Axion-pad-main\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

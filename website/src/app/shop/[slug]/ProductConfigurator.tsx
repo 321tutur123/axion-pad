@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ProductVariantFull, ProductOption } from "@/lib/products-data";
+import { type ProductVariantFull, type ProductOption, formatPrice, formatPriceAdd } from "@/lib/products-data";
 import { useCart } from "@/store/cart";
-import { api, CartItem } from "@/lib/api";
+import { api, type CartItem } from "@/lib/api";
 
 export default function ProductConfigurator({ product }: { product: ProductVariantFull }) {
   const [selections, setSelections] = useState<Record<string, string>>(() => {
@@ -14,15 +14,16 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
     });
     return defaults;
   });
-  const [qty, setQty] = useState(1);
+  const [qty,    setQty]    = useState(1);
   const [adding, setAdding] = useState(false);
-  const [done, setDone]     = useState(false);
+  const [done,   setDone]   = useState(false);
 
+  // Total in cents — safe to pass directly to Stripe as unit_amount
   const computedTotal = useMemo(() => {
     return product.options.reduce((sum, opt) => {
       const choice = opt.choices.find(c => c.value === selections[opt.id]);
       return sum + (choice?.priceAdd ?? 0);
-    }, product.basePrice);
+    }, product.price);
   }, [product, selections]);
 
   const variantLabel = useMemo(() => {
@@ -32,17 +33,22 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
     }).join(" · ");
   }, [product, selections]);
 
-  const handleAdd = async () => {
+  const handleAddToCart = async () => {
     if (!product.inStock || adding) return;
     setAdding(true);
     try {
+      // TODO: Stripe checkout — replace api.cart.add with:
+      // await fetch("/api/checkout", { method: "POST", body: JSON.stringify({
+      //   line_items: [{ price_data: { unit_amount: computedTotal, currency: "eur",
+      //     product_data: { name: product.name } }, quantity: qty }]
+      // }) })
       await api.cart.add(product.slug, qty);
     } catch {
       const item: CartItem = {
         _id: `local-${Date.now()}`,
         productId: product.slug,
         name: product.name,
-        price: computedTotal,
+        price: computedTotal / 100, // cart stores euros for display
         quantity: qty,
         variantLabel,
       };
@@ -52,8 +58,6 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
     setAdding(false);
     setTimeout(() => setDone(false), 2500);
   };
-
-  const lineTotal = (computedTotal * qty).toFixed(2);
 
   return (
     <div className="space-y-6">
@@ -70,9 +74,9 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
         <div className="flex items-end justify-between mb-5">
           <div>
             <p className="text-xs text-zinc-600 mb-1 uppercase tracking-wider">Prix total</p>
-            <p className="text-4xl font-bold text-white">{computedTotal.toFixed(2)} €</p>
-            {product.comparePrice && computedTotal === product.basePrice && (
-              <p className="text-zinc-600 text-sm line-through mt-0.5">{product.comparePrice.toFixed(2)} €</p>
+            <p className="text-4xl font-bold text-white">{formatPrice(computedTotal)}</p>
+            {product.comparePrice && computedTotal === product.price && (
+              <p className="text-zinc-600 text-sm line-through mt-0.5">{formatPrice(product.comparePrice)}</p>
             )}
           </div>
 
@@ -94,7 +98,7 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
         </div>
 
         <button
-          onClick={handleAdd}
+          onClick={handleAddToCart}
           disabled={!product.inStock || adding}
           className={`w-full py-4 rounded-2xl font-semibold text-base transition-all ${
             !product.inStock
@@ -113,8 +117,8 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
             : adding
             ? "Ajout en cours…"
             : qty > 1
-            ? `Ajouter ${qty} × au panier — ${lineTotal} €`
-            : `Ajouter au panier — ${lineTotal} €`}
+            ? `Ajouter ${qty} × au panier — ${formatPrice(computedTotal * qty)}`
+            : `Ajouter au panier — ${formatPrice(computedTotal)}`}
         </button>
 
         <p className="text-center text-xs text-zinc-700 mt-3">
@@ -173,7 +177,7 @@ function OptionPicker({ option, selected, onChange }: {
               <option key={c.value} value={c.value} disabled={c.available === false} className="bg-zinc-900">
                 {c.label}
                 {c.badge ? ` [${c.badge}]` : ""}
-                {c.priceAdd !== undefined && c.priceAdd !== 0 ? ` (${c.priceAdd > 0 ? "+" : ""}${c.priceAdd} €)` : ""}
+                {c.priceAdd ? ` (${formatPriceAdd(c.priceAdd)})` : ""}
               </option>
             ))}
           </select>
@@ -218,7 +222,7 @@ function OptionPicker({ option, selected, onChange }: {
               </div>
               {choice.priceAdd !== undefined && choice.priceAdd !== 0 && (
                 <span className={`text-xs shrink-0 ml-3 ${isSelected ? "text-violet-300" : "text-zinc-500"}`}>
-                  {choice.priceAdd > 0 ? `+${choice.priceAdd} €` : `${choice.priceAdd} €`}
+                  {formatPriceAdd(choice.priceAdd)}
                 </span>
               )}
             </button>
