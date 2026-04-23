@@ -54,7 +54,7 @@ public class AxionPadApp extends Application {
         }
 
         // Auto-connexion en arrière-plan
-        SerialService.getInstance().startAutoConnect();
+        SerialService.getInstance().startAutoConnect(minimized);
     }
 
     // ── System tray ───────────────────────────────────────────────────
@@ -103,11 +103,17 @@ public class AxionPadApp extends Application {
         // Notifications de connexion/déconnexion série
         SerialService.getInstance().addConnectionListener(connected -> {
             if (trayIcon == null) return;
+            trayIcon.setToolTip("Axion Pad — " + (connected ? "Connecté" : "Déconnecté"));
             trayIcon.displayMessage(
                 "Axion Pad Configurator",
                 connected ? "Axion Pad connecté" : "Axion Pad déconnecté",
                 connected ? TrayIcon.MessageType.INFO : TrayIcon.MessageType.WARNING
             );
+        });
+
+        // Status de recherche → tooltip tray (pas de popup)
+        SerialService.getInstance().setOnStatusMessage(status -> {
+            if (trayIcon != null) trayIcon.setToolTip("Axion Pad — " + status);
         });
 
         // Démarrer caché dans le tray

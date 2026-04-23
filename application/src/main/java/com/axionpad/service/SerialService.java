@@ -21,6 +21,12 @@ public class SerialService {
 
     private static SerialService instance;
 
+    // On a startup launch, wait for USB drivers to finish enumerating before
+    // the first connection attempt. Without this delay the scheduler latches
+    // onto the wrong COM port, marks itself "connected", and never retries.
+    private static final int STARTUP_DELAY_SECONDS = 12;
+    private static final int POLL_INTERVAL_SECONDS  = 3;
+
     private SerialPort port;
     private volatile boolean running = false;
     private ExecutorService executor;
@@ -29,9 +35,10 @@ public class SerialService {
     private final List<Consumer<Boolean>> connectionListeners = new CopyOnWriteArrayList<>();
 
     // Callbacks
-    private Consumer<int[]>  onSliderValues;  // [512, 300, 1000, 0]
+    private Consumer<int[]>  onSliderValues;
     private Consumer<String> onLogMessage;
     private Consumer<Boolean> onConnectionChanged;
+    private Consumer<String> onStatusMessage;   // tray tooltip / status bar
 
     private SerialService() {}
 
@@ -65,7 +72,6 @@ public class SerialService {
                 return p;
             }
         }
-        // Fallback : premier port disponible
         SerialPort[] all = SerialPort.getCommPorts();
         return all.length > 0 ? all[0] : null;
     }
@@ -93,6 +99,7 @@ public class SerialService {
 
             running = true;
             notifyConnection(true);
+            notifyStatus("Connecté — " + port.getSystemPortName());
             log("Connecté sur " + port.getSystemPortName() + " @ 9600 baud", false);
 
             executor = Executors.newSingleThreadExecutor(r -> {
@@ -103,7 +110,7 @@ public class SerialService {
             executor.submit(() -> {
                 try {
                     Thread.sleep(300);
-                    port.writeBytes(new byte[]{0x02}, 1);  // Ctrl+B : quitte le raw REPL → REPL interactif
+                    port.writeBytes(new byte[]{0x02}, 1);  // Ctrl+B : quitte le raw REPL
                     Thread.sleep(200);
                     port.writeBytes(new byte[]{0x04}, 1);  // Ctrl+D : soft reset → relance code.py
                     Thread.sleep(2000);                     // Attendre le redémarrage complet
@@ -126,7 +133,6 @@ public class SerialService {
                 int n = port.readBytes(tmp, tmp.length);
                 if (n <= 0) continue;
 
-                // Normaliser les fins de ligne (\r\n et \r → \n)
                 String chunk = new String(tmp, 0, n, java.nio.charset.StandardCharsets.UTF_8);
                 buf.append(chunk.replace("\r\n", "\n").replace("\r", "\n"));
 
@@ -136,7 +142,6 @@ public class SerialService {
                     buf.delete(0, idx + 1);
                     if (line.isEmpty()) continue;
 
-                    // Format DEEJ : "512|300|1000|0"
                     if (line.matches("\\d+\\|\\d+\\|\\d+\\|\\d+")) {
                         String[] parts = line.split("\\|");
                         int[] vals = new int[4];
@@ -158,17 +163,21 @@ public class SerialService {
         if (running) {
             running = false;
             notifyConnection(false);
+            notifyStatus("Déconnecté — relance de la recherche...");
             log("Connexion perdue.", true);
         }
     }
 
     /** Ferme la connexion proprement. */
     public void disconnect() {
+        boolean wasConnected = running;
         running = false;
         if (executor != null) { executor.shutdownNow(); executor = null; }
         if (port != null && port.isOpen()) { port.closePort(); }
         port = null;
-        notifyConnection(false);
+        // Only fire the notification if we were actually connected — avoids
+        // spurious "disconnected" tray popups during the startup scan.
+        if (wasConnected) notifyConnection(false);
     }
 
     public boolean isConnected() {
@@ -194,43 +203,77 @@ public class SerialService {
             Platform.runLater(() -> l.accept(connected));
     }
 
+    private void notifyStatus(String status) {
+        if (onStatusMessage != null)
+            Platform.runLater(() -> onStatusMessage.accept(status));
+    }
+
     // ── Setters callbacks ─────────────────────────────────────────────
 
     public void setOnSliderValues(Consumer<int[]> cb)       { this.onSliderValues = cb; }
     public void setOnLogMessage(Consumer<String> cb)         { this.onLogMessage = cb; }
     public void setOnConnectionChanged(Consumer<Boolean> cb) { this.onConnectionChanged = cb; }
+    public void setOnStatusMessage(Consumer<String> cb)      { this.onStatusMessage = cb; }
     public void addConnectionListener(Consumer<Boolean> cb)  { connectionListeners.add(cb); }
 
     // ── Auto-connect ──────────────────────────────────────────────────
 
-    public void startAutoConnect() {
+    /**
+     * Démarre la surveillance de connexion en arrière-plan.
+     *
+     * @param isStartupLaunch true quand l'app est lancée automatiquement au
+     *                        démarrage Windows (flag --minimized). Un délai
+     *                        initial de {@value STARTUP_DELAY_SECONDS}s laisse
+     *                        le temps aux pilotes USB de s'initialiser avant
+     *                        le premier scan.
+     */
+    public void startAutoConnect(boolean isStartupLaunch) {
         if (autoConnectScheduler != null && !autoConnectScheduler.isShutdown()) return;
+
         autoConnectScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "AutoConnect");
             t.setDaemon(true);
             return t;
         });
-        autoConnectScheduler.scheduleAtFixedRate(() -> {
+
+        long initialDelay = isStartupLaunch ? STARTUP_DELAY_SECONDS : 1L;
+
+        if (isStartupLaunch) {
+            notifyStatus("Démarrage — attente des pilotes USB (" + STARTUP_DELAY_SECONDS + "s)...");
+        }
+
+        // scheduleWithFixedDelay: the next scan only begins AFTER the current one
+        // finishes. This prevents overlapping attempts when connect() blocks for
+        // ~2.5 s during the CircuitPython handshake.
+        autoConnectScheduler.scheduleWithFixedDelay(() -> {
             if (isConnected()) return;
-            SerialPort primary  = null;   // CircuitPython / RP2040 / VID 0x2E8A
-            SerialPort fallback = null;   // any USB Serial device
+
+            notifyStatus("Recherche de l'Axion Pad...");
+
+            SerialPort target = null;
             for (SerialPort p : SerialPort.getCommPorts()) {
                 String desc = p.getDescriptivePortName();
-                String vid  = p.getVendorID() >= 0
-                    ? String.format("0x%04X", p.getVendorID()) : "n/a";
-                System.out.println("[AutoConnect] " + p.getSystemPortName()
-                    + " — \"" + desc + "\"  VID=" + vid);
-                if (primary == null && (desc.contains("CircuitPython")
-                        || desc.contains("RP2040")
-                        || p.getVendorID() == 0x2E8A)) {
-                    primary = p;
-                } else if (fallback == null && desc.contains("USB Serial")) {
-                    fallback = p;
+                int    vid  = p.getVendorID();
+                System.out.printf("[AutoConnect] %s — \"%s\"  VID=0x%04X%n",
+                    p.getSystemPortName(), desc, vid);
+
+                // Only connect to a confirmed AxionPad — no generic "USB Serial"
+                // fallback, which was latching onto unrelated devices on boot.
+                if (desc.contains("CircuitPython") || desc.contains("RP2040")
+                        || desc.contains("Adafruit") || vid == 0x2E8A) {
+                    target = p;
+                    break;
                 }
             }
-            SerialPort target = (primary != null) ? primary : fallback;
+
             if (target != null) connect(target);
-        }, 2, 2, TimeUnit.SECONDS);
+
+        }, initialDelay, POLL_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /** Compatibilité — équivalent à startAutoConnect(false). */
+    public void startAutoConnect() {
+        startAutoConnect(false);
     }
 
     public void stopAutoConnect() {
