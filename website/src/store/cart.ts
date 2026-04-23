@@ -46,22 +46,27 @@ export const useCart = create<CartStore>()(
       },
 
       add: async (productId, quantity = 1, variantId) => {
-        const res = await api.cart.add(productId, quantity, variantId);
-        const data = res.cart || res;
-        set({ items: (data as any).items || get().items });
+        try {
+          const res = await api.cart.add(productId, quantity, variantId);
+          const data = (res as any).cart || res;
+          if ((data as any).items) set({ items: (data as any).items });
+        } catch {
+          // keep local state on API failure
+        }
       },
 
       update: async (itemId, quantity) => {
         if (quantity < 1) { await get().remove(itemId); return; }
-        const res = await api.cart.update(itemId, quantity);
-        const data = res.cart || res;
-        set({ items: (data as any).items || get().items });
+        set({ items: get().items.map(i => (i._id || i.id) === itemId ? { ...i, quantity } : i) });
+        api.cart.update(itemId, quantity).then(res => {
+          const data = (res as any).cart || res;
+          if ((data as any).items) set({ items: (data as any).items });
+        }).catch(() => null);
       },
 
       remove: async (itemId) => {
-        const res = await api.cart.remove(itemId);
-        const data = res.cart || res;
-        set({ items: (data as any).items || get().items.filter(i => (i._id || i.id) !== itemId) });
+        set({ items: get().items.filter(i => (i._id || i.id) !== itemId) });
+        api.cart.remove(itemId).catch(() => null);
       },
 
       clear: async () => {
