@@ -22,7 +22,7 @@
             { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
             { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
             { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
-            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": true }
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available":false }
           ]
         },
         {
@@ -175,7 +175,7 @@
             { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
             { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
             { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
-            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": true }
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": false }
           ]
         },
         {
@@ -238,7 +238,7 @@
             { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
             { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
             { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
-            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": true }
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": false }
           ]
         },
         {

@@ -24,7 +24,8 @@
       "Bash(Get-Content \"C:\\\\Users\\\\arthu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-arthu-Desktop-Axion-pad-main\\\\4b097fa7-c037-45db-93c3-ae58d376064f\\\\tasks\\\\brfsmop1x.output\" -Wait)",
       "Bash(Select-String -Pattern \"Step|SUCCESS|ERROR|error|FAILED|failed|Warning|pause|exit\" --SimpleMatch)",
       "Bash(Get-Content \"C:\\\\Users\\\\arthu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-arthu-Desktop-Axion-pad-main\\\\4b097fa7-c037-45db-93c3-ae58d376064f\\\\tasks\\\\bjlso9cse.output\" -Wait)",
-      "Bash(Select-String \"Step|SUCCESS|ERROR|FAILED|error|BUILD\" --SimpleMatch)"
+      "Bash(Select-String \"Step|SUCCESS|ERROR|FAILED|error|BUILD\" --SimpleMatch)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js|json\\)$\")"
     ]
   }
 }
