@@ -1,76 +1,102 @@
 @echo off
-REM ═══════════════════════════════════════════════════════════
-REM  Axion Pad Configurator — Script de build Windows
-REM  Génère : axionpad-1.0.0.exe (installateur Windows)
-REM  Pré-requis : Java 17+, Maven 3.6+
-REM ═══════════════════════════════════════════════════════════
+SETLOCAL EnableDelayedExpansion
+cd /d "%~dp0"
 
-echo.
-echo  ╔══════════════════════════════════════╗
-echo  ║   Axion Pad Configurator — Build     ║
-echo  ╚══════════════════════════════════════╝
-echo.
+SET "JFX_VERSION=21.0.2"
+SET "M2=%USERPROFILE%\.m2\repository\org\openjfx"
 
-REM Vérification Java 17+
-java -version 2>&1 | findstr /r /c:"version .1[7-9]" /c:"version .[2-9][0-9]" >nul
-IF ERRORLEVEL 1 (
-    echo [ERREUR] Java 17 ou superieur est requis.
-    echo Telecharge Java 17 sur : https://adoptium.net/
+echo Step 1 - Maven build
+call mvn clean package -Pjpackage -DskipTests
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: Maven build failed
     pause
     exit /b 1
 )
 
-REM Vérification Maven
-mvn -version >nul 2>&1
-IF ERRORLEVEL 1 (
-    echo [ERREUR] Maven n'est pas installe ou pas dans le PATH.
-    echo Telecharge Maven sur : https://maven.apache.org/download.cgi
+if not exist "target\axionpad-1.0.1.jar" (
+    echo ERROR: target\axionpad-1.0.1.jar not found
+    pause
+    exit /b 1
+)
+if not exist "target\lib" (
+    echo ERROR: target\lib not found
     pause
     exit /b 1
 )
 
-echo [1/3] Compilation et packaging Maven...
-call mvn clean package -q
-IF ERRORLEVEL 1 (
-    echo [ERREUR] La compilation a echoue. Verifie les erreurs ci-dessus.
+echo Step 2 - Copy main JAR into target\lib
+copy /y "target\axionpad-1.0.1.jar" "target\lib\axionpad-1.0.1.jar" >nul
+
+echo Step 3 - Build JavaFX module directory
+if exist "target\javafx-mods" rmdir /s /q "target\javafx-mods"
+mkdir "target\javafx-mods"
+for %%N in (javafx-base javafx-graphics javafx-controls javafx-fxml) do (
+    copy /y "%M2%\%%N\%JFX_VERSION%\%%N-%JFX_VERSION%-win.jar" "target\javafx-mods\" >nul
+    if !ERRORLEVEL! neq 0 (
+        echo ERROR: %%N win JAR not in Maven cache
+        echo Run: mvn dependency:resolve -Dclassifier=win
+        pause
+        exit /b 1
+    )
+)
+echo JavaFX module directory ready
+
+echo Step 4 - Build custom JRE with jlink
+if exist "target\custom-jre" rmdir /s /q "target\custom-jre"
+jlink ^
+ --module-path "target\javafx-mods" ^
+ --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.base,java.desktop,java.datatransfer,java.prefs,java.logging,java.xml,java.scripting,jdk.unsupported ^
+ --output "target\custom-jre" ^
+ --strip-debug ^
+ --no-man-pages ^
+ --no-header-files
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: jlink failed
     pause
     exit /b 1
 )
 
-echo [2/3] Creation de l'installateur Windows avec jpackage...
+echo Step 5 - Extract JavaFX native DLLs from win JARs into runtime\bin
+if exist "target\dll-extract" rmdir /s /q "target\dll-extract"
+mkdir "target\dll-extract"
+for %%N in (javafx-base javafx-graphics javafx-controls javafx-fxml) do (
+    mkdir "target\dll-extract\%%N" 2>nul
+    pushd "target\dll-extract\%%N"
+    jar xf "%M2%\%%N\%JFX_VERSION%\%%N-%JFX_VERSION%-win.jar"
+    popd
+    for %%D in ("target\dll-extract\%%N\*.dll") do (
+        copy /y "%%D" "target\custom-jre\bin\" >nul
+    )
+)
+if not exist "target\custom-jre\bin\glass.dll" (
+    echo ERROR: glass.dll not found in runtime\bin after extraction
+    pause
+    exit /b 1
+)
+echo glass.dll and prism DLLs confirmed in runtime\bin
+
+echo Step 6 - jpackage
+if not exist "dist" mkdir "dist"
 jpackage ^
-    --input target ^
-    --name "Axion Pad Configurator" ^
-    --main-jar axionpad-1.0.0.jar ^
-    --main-class com.axionpad.Main ^
-    --type exe ^
-    --dest dist/windows ^
-    --app-version 1.0.0 ^
-    --vendor "Axion Pad" ^
-    --description "Configurateur officiel pour le clavier Axion Pad" ^
-    --win-shortcut ^
-    --win-menu ^
-    --win-dir-chooser ^
-    --icon src/main/resources/com/axionpad/icons/axionpad.ico ^
-    --java-options "--add-modules javafx.controls,javafx.fxml,javafx.graphics"
+ --type msi ^
+ --name AxionPad ^
+ --app-version 1.0.1 ^
+ --dest dist ^
+ --runtime-image target\custom-jre ^
+ --input target\lib ^
+ --main-jar axionpad-1.0.1.jar ^
+ --main-class com.axionpad.Main ^
+ --icon icon.ico ^
+ --win-upgrade-uuid 7f33663a-8664-4e2a-b733-4f9687e0259b ^
+ --java-options "-Dprism.order=sw" ^
+ --win-menu ^
+ --win-shortcut
 
-IF ERRORLEVEL 1 (
-    echo [INFO] jpackage non disponible, creation d'un JAR executable a la place...
-    IF NOT EXIST dist\windows mkdir dist\windows
-    copy target\axionpad-1.0.0.jar dist\windows\AxionPadConfigurator.jar
-    echo @echo off > dist\windows\launch.bat
-    echo java -jar "%%~dp0AxionPadConfigurator.jar" >> dist\windows\launch.bat
-    echo [OK] JAR cree dans dist/windows/
-    goto done
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: jpackage failed
+    echo Make sure WiX Toolset is installed: winget install WixToolset.WiXToolset
+) else (
+    echo SUCCESS: dist\AxionPad-1.0.1.msi is ready
 )
 
-echo [3/3] Nettoyage...
-
-:done
-echo.
-echo  ════════════════════════════════════════
-echo   Build termine !
-echo   Fichiers dans : dist/windows/
-echo  ════════════════════════════════════════
-echo.
 pause

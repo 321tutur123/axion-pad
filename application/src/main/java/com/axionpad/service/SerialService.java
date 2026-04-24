@@ -34,11 +34,22 @@ public class SerialService {
     private volatile boolean connecting = false;
     private final List<Consumer<Boolean>> connectionListeners = new CopyOnWriteArrayList<>();
 
+    // Watchdog: fires recovery if no data arrives within this window
+    private static final int WATCHDOG_TIMEOUT_MS  = 5000;
+    private static final int WATCHDOG_TICK_SECONDS = 2;   // check every 2s — ultra-low CPU
+    private volatile long lastDataTime = 0;
+    private ScheduledExecutorService watchdogScheduler;
+
+    // Slider UI throttle — cap at 20 fps to keep CPU near zero
+    private static final long SLIDER_UI_INTERVAL_MS = 50;
+    private volatile long lastSliderUiTime = 0;
+
     // Callbacks
     private Consumer<int[]>  onSliderValues;
     private Consumer<String> onLogMessage;
     private Consumer<Boolean> onConnectionChanged;
     private Consumer<String> onStatusMessage;   // tray tooltip / status bar
+    private Consumer<Boolean> onSearching;       // true = recovering/searching, false = done
 
     private SerialService() {}
 
@@ -83,6 +94,8 @@ public class SerialService {
     public boolean connect(SerialPort port) {
         if (connecting) return false;
         connecting = true;
+        DebugLogger.log("[connect] Opening " + port.getSystemPortName()
+                + " \"" + port.getDescriptivePortName() + "\"");
         try {
             disconnect();
             this.port = port;
@@ -93,11 +106,14 @@ public class SerialService {
             port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 1000, 0);
 
             if (!port.openPort()) {
+                DebugLogger.log("[connect] openPort() returned false for " + port.getSystemPortName());
                 log("Impossible d'ouvrir le port " + port.getSystemPortName(), true);
                 return false;
             }
 
+            DebugLogger.log("[connect] Port opened — starting reader thread");
             running = true;
+            notifySearching(false);
             notifyConnection(true);
             notifyStatus("Connecté — " + port.getSystemPortName());
             log("Connecté sur " + port.getSystemPortName() + " @ 9600 baud", false);
@@ -115,6 +131,8 @@ public class SerialService {
                     port.writeBytes(new byte[]{0x04}, 1);  // Ctrl+D : soft reset → relance code.py
                     Thread.sleep(2000);                     // Attendre le redémarrage complet
                 } catch (InterruptedException e) { return; }
+                lastDataTime = System.currentTimeMillis();
+                startWatchdog();
                 readLoop();
             });
             return true;
@@ -132,6 +150,7 @@ public class SerialService {
             try {
                 int n = port.readBytes(tmp, tmp.length);
                 if (n <= 0) continue;
+                lastDataTime = System.currentTimeMillis();
 
                 String chunk = new String(tmp, 0, n, java.nio.charset.StandardCharsets.UTF_8);
                 buf.append(chunk.replace("\r\n", "\n").replace("\r", "\n"));
@@ -172,6 +191,7 @@ public class SerialService {
     public void disconnect() {
         boolean wasConnected = running;
         running = false;
+        stopWatchdog();
         if (executor != null) { executor.shutdownNow(); executor = null; }
         if (port != null && port.isOpen()) { port.closePort(); }
         port = null;
@@ -184,11 +204,57 @@ public class SerialService {
         return running && port != null && port.isOpen();
     }
 
+    // ── Watchdog ──────────────────────────────────────────────────────
+
+    private void startWatchdog() {
+        stopWatchdog();
+        watchdogScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "SerialWatchdog");
+            t.setDaemon(true);
+            return t;
+        });
+        watchdogScheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (!running) return;
+                long elapsed = System.currentTimeMillis() - lastDataTime;
+                if (elapsed > WATCHDOG_TIMEOUT_MS) {
+                    DebugLogger.log("[Watchdog] Connection lost - Attempting recovery...");
+                    triggerRecovery();
+                }
+            } catch (Throwable t) {
+                DebugLogger.log("[Watchdog] Exception: " + t.getMessage());
+            }
+        }, WATCHDOG_TICK_SECONDS, WATCHDOG_TICK_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private void stopWatchdog() {
+        if (watchdogScheduler != null) {
+            watchdogScheduler.shutdownNow();
+            watchdogScheduler = null;
+        }
+    }
+
+    /** Closes the port and signals the UI to show the recovery state. Auto-connect will reconnect. */
+    private void triggerRecovery() {
+        running = false;
+        stopWatchdog();
+        if (executor != null) { executor.shutdownNow(); executor = null; }
+        if (port != null && port.isOpen()) { port.closePort(); }
+        port = null;
+        notifySearching(true);
+        notifyConnection(false);
+        notifyStatus("Connection lost — Attempting recovery...");
+        log("Connection lost - Attempting recovery...", true);
+    }
+
     // ── Notifications thread-safe (Platform.runLater) ─────────────────
 
     private void notifySliders(int[] vals) {
-        if (onSliderValues != null)
-            Platform.runLater(() -> onSliderValues.accept(vals));
+        if (onSliderValues == null) return;
+        long now = System.currentTimeMillis();
+        if (now - lastSliderUiTime < SLIDER_UI_INTERVAL_MS) return;
+        lastSliderUiTime = now;
+        Platform.runLater(() -> onSliderValues.accept(vals));
     }
 
     private void log(String msg, boolean error) {
@@ -208,12 +274,18 @@ public class SerialService {
             Platform.runLater(() -> onStatusMessage.accept(status));
     }
 
+    private void notifySearching(boolean searching) {
+        if (onSearching != null)
+            Platform.runLater(() -> onSearching.accept(searching));
+    }
+
     // ── Setters callbacks ─────────────────────────────────────────────
 
     public void setOnSliderValues(Consumer<int[]> cb)       { this.onSliderValues = cb; }
     public void setOnLogMessage(Consumer<String> cb)         { this.onLogMessage = cb; }
     public void setOnConnectionChanged(Consumer<Boolean> cb) { this.onConnectionChanged = cb; }
     public void setOnStatusMessage(Consumer<String> cb)      { this.onStatusMessage = cb; }
+    public void setOnSearching(Consumer<Boolean> cb)         { this.onSearching = cb; }
     public void addConnectionListener(Consumer<Boolean> cb)  { connectionListeners.add(cb); }
 
     // ── Auto-connect ──────────────────────────────────────────────────
@@ -238,6 +310,9 @@ public class SerialService {
 
         long initialDelay = isStartupLaunch ? STARTUP_DELAY_SECONDS : 1L;
 
+        DebugLogger.log("[startAutoConnect] isStartupLaunch=" + isStartupLaunch
+                + "  initialDelay=" + initialDelay + "s  pollInterval=" + POLL_INTERVAL_SECONDS + "s");
+
         if (isStartupLaunch) {
             notifyStatus("Démarrage — attente des pilotes USB (" + STARTUP_DELAY_SECONDS + "s)...");
         }
@@ -245,28 +320,51 @@ public class SerialService {
         // scheduleWithFixedDelay: the next scan only begins AFTER the current one
         // finishes. This prevents overlapping attempts when connect() blocks for
         // ~2.5 s during the CircuitPython handshake.
+        //
+        // IMPORTANT: the entire body is wrapped in try/catch(Throwable). If any
+        // unchecked exception escapes the Runnable, ScheduledExecutorService
+        // silently cancels all future executions — the scheduler dies with no
+        // error visible anywhere. The catch logs the exception and keeps polling.
         autoConnectScheduler.scheduleWithFixedDelay(() -> {
-            if (isConnected()) return;
+            try {
+                if (isConnected()) return;
 
-            notifyStatus("Recherche de l'Axion Pad...");
+                notifyStatus("Recherche de l'Axion Pad...");
 
-            SerialPort target = null;
-            for (SerialPort p : SerialPort.getCommPorts()) {
-                String desc = p.getDescriptivePortName();
-                int    vid  = p.getVendorID();
-                System.out.printf("[AutoConnect] %s — \"%s\"  VID=0x%04X%n",
-                    p.getSystemPortName(), desc, vid);
+                SerialPort[] ports = SerialPort.getCommPorts();
+                DebugLogger.log("[AutoConnect] Scan — " + ports.length + " port(s) visible");
 
-                // Only connect to a confirmed AxionPad — no generic "USB Serial"
-                // fallback, which was latching onto unrelated devices on boot.
-                if (desc.contains("CircuitPython") || desc.contains("RP2040")
-                        || desc.contains("Adafruit") || vid == 0x2E8A) {
-                    target = p;
-                    break;
+                SerialPort target = null;
+                for (SerialPort p : ports) {
+                    String desc = p.getDescriptivePortName();
+                    int    vid  = p.getVendorID();
+                    DebugLogger.log("[AutoConnect]   " + p.getSystemPortName()
+                            + " — \"" + desc + "\"  VID=0x" + String.format("%04X", vid));
+                    System.out.printf("[AutoConnect] %s — \"%s\"  VID=0x%04X%n",
+                        p.getSystemPortName(), desc, vid);
+
+                    // Only connect to a confirmed AxionPad — no generic "USB Serial"
+                    // fallback, which was latching onto unrelated devices on boot.
+                    if (desc.contains("CircuitPython") || desc.contains("RP2040")
+                            || desc.contains("Adafruit") || vid == 0x2E8A) {
+                        target = p;
+                        break;
+                    }
                 }
-            }
 
-            if (target != null) connect(target);
+                if (target != null) {
+                    DebugLogger.log("[AutoConnect] Match: " + target.getSystemPortName() + " — calling connect()");
+                    connect(target);
+                } else {
+                    DebugLogger.log("[AutoConnect] No match — will retry in " + POLL_INTERVAL_SECONDS + "s");
+                }
+
+            } catch (Throwable t) {
+                // Log and swallow so the scheduler stays alive for the next cycle.
+                DebugLogger.log("[AutoConnect] EXCEPTION (scheduler kept alive): "
+                        + t.getClass().getSimpleName() + ": " + t.getMessage());
+                t.printStackTrace();
+            }
 
         }, initialDelay, POLL_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
@@ -277,6 +375,7 @@ public class SerialService {
     }
 
     public void stopAutoConnect() {
+        stopWatchdog();
         if (autoConnectScheduler != null) {
             autoConnectScheduler.shutdownNow();
             autoConnectScheduler = null;

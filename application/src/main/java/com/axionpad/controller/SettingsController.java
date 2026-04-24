@@ -1,8 +1,10 @@
 package com.axionpad.controller;
 
+import com.axionpad.StartupRegistryHelper;
 import com.axionpad.model.AppSettings;
 import com.axionpad.service.I18n;
 import com.axionpad.service.SettingsService;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -155,8 +157,119 @@ public class SettingsController {
             if (onApply != null) onApply.run();
         });
 
-        root.getChildren().addAll(title, langCard, fontCard, bgCard, wpCard, applyBtn);
+        // ── Repair Startup ────────────────────────────────────────────
+        Label repairStatus = new Label("");
+        repairStatus.getStyleClass().add("form-label");
+        repairStatus.setWrapText(true);
+
+        Button repairBtn = new Button("Repair Startup");
+        repairBtn.getStyleClass().addAll("btn", "btn-primary");
+        repairBtn.setOnAction(e -> {
+            repairBtn.setDisable(true);
+            repairStatus.setText("Running…");
+            new Thread(() -> {
+                StartupRegistryHelper.RepairResult result = StartupRegistryHelper.repair();
+                String msg = switch (result) {
+                    case OK             -> "Done — startup batch file written and stale instances killed.";
+                    case NO_PATH        -> "Error: could not detect the running EXE/JAR path.";
+                    case REGISTRY_ERROR -> "Error: could not write the startup batch file.";
+                };
+                Platform.runLater(() -> {
+                    repairStatus.setText(msg);
+                    repairBtn.setDisable(false);
+                });
+            }, "repair-startup").start();
+        });
+
+        VBox repairContent = new VBox(8, repairBtn, repairStatus);
+        VBox repairCard = card("Startup", repairContent);
+
+        // ── Product Line ──────────────────────────────────────────────
+        VBox productCard = buildProductLineCard();
+
+        // ── About / Tech Specs ────────────────────────────────────────
+        VBox aboutCard = buildAboutCard();
+
+        root.getChildren().addAll(title, langCard, fontCard, bgCard, wpCard, repairCard, applyBtn, productCard, aboutCard);
         return root;
+    }
+
+    private VBox buildProductLineCard() {
+        VBox card = new VBox(10);
+        card.getStyleClass().add("card");
+        Label header = new Label("PRODUCT LINE");
+        header.getStyleClass().add("card-title");
+        card.getChildren().add(header);
+
+        String[][] active = {
+            {"AxionPad Standard", "Plug & play, fully assembled"},
+            {"DIY Kit",           "All parts, you solder"},
+            {"PCB Only",          "Bare PCB for enthusiasts"},
+        };
+        for (String[] p : active) {
+            card.getChildren().add(productRow(p[0], p[1], "#34d399", false));
+        }
+
+        Label comingSoonLbl = new Label("COMING SOON");
+        comingSoonLbl.setStyle("-fx-text-fill: rgba(255,255,255,0.28); -fx-font-size: 10px; -fx-padding: 8 0 2 0;");
+        card.getChildren().add(comingSoonLbl);
+
+        String[][] soon = {
+            {"Metal Edition",    "CNC aluminium top plate"},
+            {"Screwless Design", "Tool-free snap assembly"},
+        };
+        for (String[] p : soon) {
+            card.getChildren().add(productRow(p[0], p[1], "#71717a", true));
+        }
+        return card;
+    }
+
+    private javafx.scene.layout.HBox productRow(String name, String desc, String badgeColor, boolean dimmed) {
+        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(10);
+        row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        row.setPadding(new Insets(4, 0, 4, 0));
+
+        javafx.scene.control.Label badge = new javafx.scene.control.Label(dimmed ? "Soon" : "●");
+        badge.setStyle("-fx-text-fill: " + badgeColor + "; -fx-font-size: 11px; -fx-min-width: 28;");
+
+        javafx.scene.control.Label nameLbl = new javafx.scene.control.Label(name);
+        nameLbl.setStyle("-fx-text-fill: " + (dimmed ? "rgba(255,255,255,0.30)" : "#d4d4d8") + ";"
+                + " -fx-font-size: 13px; -fx-font-weight: bold; -fx-min-width: 150;");
+
+        javafx.scene.control.Label descLbl = new javafx.scene.control.Label(desc);
+        descLbl.setStyle("-fx-text-fill: rgba(255,255,255," + (dimmed ? "0.18" : "0.45") + ");"
+                + " -fx-font-size: 11px;");
+
+        row.getChildren().addAll(badge, nameLbl, descLbl);
+        return row;
+    }
+
+    private VBox buildAboutCard() {
+        VBox card = new VBox(8);
+        card.getStyleClass().add("card");
+        Label header = new Label("TECH SPECS & ABOUT");
+        header.getStyleClass().add("card-title");
+
+        String[][] specs = {
+            {"PCB",       "2-layer, custom design"},
+            {"Hardware",  "Kailh Hot-swap sockets · CHC M4 screws"},
+            {"Features",  "Axion Watchdog (Auto-Recovery) · AxionPad Native protocol"},
+            {"Version",   "1.0.1"},
+        };
+        VBox rows = new VBox(6);
+        for (String[] s : specs) {
+            javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(10);
+            row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            javafx.scene.control.Label key = new javafx.scene.control.Label(s[0]);
+            key.setStyle("-fx-text-fill: #a78bfa; -fx-font-size: 11px; -fx-min-width: 70;");
+            javafx.scene.control.Label val = new javafx.scene.control.Label(s[1]);
+            val.setStyle("-fx-text-fill: rgba(255,255,255,0.70); -fx-font-size: 12px;");
+            val.setWrapText(true);
+            row.getChildren().addAll(key, val);
+            rows.getChildren().add(row);
+        }
+        card.getChildren().addAll(header, rows);
+        return card;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────

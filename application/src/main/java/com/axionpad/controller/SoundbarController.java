@@ -191,7 +191,7 @@ public class SoundbarController {
         // DEEJ live values
         VBox deejBox = new VBox(10);
         deejBox.getStyleClass().add("card");
-        Label deejTitle = new Label("VALEURS DEEJ EN DIRECT");
+        Label deejTitle = new Label("AXIONPAD NATIVE — VALEURS EN DIRECT");
         deejTitle.getStyleClass().add("card-title");
         HBox deejRow = new HBox(8);
         for (int i = 0; i < 4; i++) {

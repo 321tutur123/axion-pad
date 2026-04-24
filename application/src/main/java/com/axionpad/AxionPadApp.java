@@ -1,6 +1,7 @@
 package com.axionpad;
 
 import com.axionpad.service.ConfigService;
+import com.axionpad.service.DebugLogger;
 import com.axionpad.service.I18n;
 import com.axionpad.service.KeyHookService;
 import com.axionpad.service.SerialService;
@@ -17,7 +18,7 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 
 /**
- * Application JavaFX principale — Axion Pad Configurator
+ * Application JavaFX principale — AxionPad Configurator
  * Lance dans le system tray, démarre invisible.
  */
 public class AxionPadApp extends Application {
@@ -26,35 +27,51 @@ public class AxionPadApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Empêche JavaFX de quitter quand la fenêtre est cachée
-        Platform.setImplicitExit(false);
+        // Force DebugLogger to initialize before any other service so that
+        // failures in those services are captured in the log file.
+        DebugLogger.log("[AxionPadApp] start() — logger online");
 
-        // Services
-        SettingsService.getInstance().load();
-        I18n.setLanguage(SettingsService.getInstance().getSettings().getLanguage());
-        ConfigService.getInstance().load();
-        KeyHookService.getInstance().start();
+        try {
+            // Empêche JavaFX de quitter quand la fenêtre est cachée
+            Platform.setImplicitExit(false);
 
-        boolean minimized = getParameters().getRaw().contains("--minimized");
+            // Services
+            SettingsService.getInstance().load();
+            I18n.setLanguage(SettingsService.getInstance().getSettings().getLanguage());
+            ConfigService.getInstance().load();
+            KeyHookService.getInstance().start();
 
-        // Fenêtre principale — initialisée sans flash en mode minimized
-        MainWindow mainWindow = new MainWindow(primaryStage, ConfigService.getInstance());
-        if (minimized) {
-            mainWindow.initScene();   // construit la scène sans appeler stage.show()
-        } else {
-            mainWindow.show();
-            primaryStage.hide();
+            boolean minimized = getParameters().getRaw().contains("--minimized");
+            DebugLogger.log("[AxionPadApp] start()  args=" + getParameters().getRaw()
+                    + "  minimized=" + minimized);
+
+            // Fenêtre principale — initialisée sans flash en mode minimized
+            MainWindow mainWindow = new MainWindow(primaryStage, ConfigService.getInstance());
+            if (minimized) {
+                mainWindow.initScene();   // construit la scène sans appeler stage.show()
+            } else {
+                mainWindow.show();
+                primaryStage.hide();
+            }
+
+            // System tray
+            if (SystemTray.isSupported()) {
+                setupSystemTray(primaryStage);
+            } else {
+                primaryStage.show();
+            }
+
+            // Auto-connexion en arrière-plan
+            SerialService.getInstance().startAutoConnect(minimized);
+
+        } catch (Throwable t) {
+            // Catch-all so the crash is written to the debug log AND stderr before
+            // JavaFX swallows the exception. SerialService is started here too so
+            // the scheduler isn't skipped due to an earlier failure.
+            DebugLogger.log("[AxionPadApp] FATAL startup exception", t);
+            System.err.println("[AxionPadApp] FATAL: " + t);
+            throw t;  // Re-throw so JavaFX / the launcher still sees the failure.
         }
-
-        // System tray
-        if (SystemTray.isSupported()) {
-            setupSystemTray(primaryStage);
-        } else {
-            primaryStage.show();
-        }
-
-        // Auto-connexion en arrière-plan
-        SerialService.getInstance().startAutoConnect(minimized);
     }
 
     // ── System tray ───────────────────────────────────────────────────
@@ -86,7 +103,7 @@ public class AxionPadApp extends Application {
         popup.addSeparator();
         popup.add(quitItem);
 
-        trayIcon = new TrayIcon(img, "Axion Pad Configurator", popup);
+        trayIcon = new TrayIcon(img, "AxionPad Configurator", popup);
         trayIcon.setImageAutoSize(true);
         // Double-clic → ouvrir la fenêtre
         trayIcon.addActionListener(e -> Platform.runLater(() -> {
@@ -105,7 +122,7 @@ public class AxionPadApp extends Application {
             if (trayIcon == null) return;
             trayIcon.setToolTip("Axion Pad — " + (connected ? "Connecté" : "Déconnecté"));
             trayIcon.displayMessage(
-                "Axion Pad Configurator",
+                "AxionPad Configurator",
                 connected ? "Axion Pad connecté" : "Axion Pad déconnecté",
                 connected ? TrayIcon.MessageType.INFO : TrayIcon.MessageType.WARNING
             );

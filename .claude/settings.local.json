@@ -14,7 +14,17 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(xargs grep *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Axion-pad-main\\\\application\\\\dist\" | Select-Object Name, @{n='SizeMB';e={[math]::Round\\($_.Length/1MB,1\\)}}, LastWriteTime)",
+      "Read(//c/Program Files/AxionPad/**)",
+      "Read(//c/Users/arthu/AppData/Local/AxionPad/**)",
+      "Bash(sort echo *)",
+      "Bash(call build-windows.bat)",
+      "Bash(Get-Content \"C:\\\\Users\\\\arthu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-arthu-Desktop-Axion-pad-main\\\\4b097fa7-c037-45db-93c3-ae58d376064f\\\\tasks\\\\brfsmop1x.output\" -Wait)",
+      "Bash(Select-String -Pattern \"Step|SUCCESS|ERROR|error|FAILED|failed|Warning|pause|exit\" --SimpleMatch)",
+      "Bash(Get-Content \"C:\\\\Users\\\\arthu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-arthu-Desktop-Axion-pad-main\\\\4b097fa7-c037-45db-93c3-ae58d376064f\\\\tasks\\\\bjlso9cse.output\" -Wait)",
+      "Bash(Select-String \"Step|SUCCESS|ERROR|FAILED|error|BUILD\" --SimpleMatch)"
     ]
   }
 }

@@ -44,11 +44,11 @@ public class ExportController {
         // yaml + json
         VBox rightCol = new VBox(14);
         HBox.setHgrow(rightCol, Priority.ALWAYS);
-        VBox yamlBox = buildFileBox("📁  deej / deej-config.yaml",
+        VBox yamlBox = buildFileBox("📁  AxionPad Native / axionpad-native.yaml",
                 cfg.getConfig().generateDeejYaml(),
-                "Enregistrer deej-config.yaml",
+                "Enregistrer axionpad-native.yaml",
                 new FileChooser.ExtensionFilter("YAML", "*.yaml"),
-                "deej-config.yaml");
+                "axionpad-native.yaml");
         rightCol.getChildren().addAll(yamlBox);
 
         grid.getChildren().addAll(codeBox, rightCol);

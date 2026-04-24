@@ -60,7 +60,7 @@ public class SlidersController {
         Label title = new Label("Potentiomètres linéaires");
         title.getStyleClass().add("page-title");
 
-        Label desc = new Label("Chaque potentiomètre envoie sa valeur (0-1023) via port série au format DEEJ. "
+        Label desc = new Label("Chaque potentiomètre envoie sa valeur (0-1023) via port série au format AxionPad Native. "
                 + "Assigne une application à chaque canal.");
         desc.getStyleClass().add("page-desc");
         desc.setWrapText(true);
@@ -73,7 +73,7 @@ public class SlidersController {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
 
-        Label ct = new Label("4 CANAUX DEEJ");
+        Label ct = new Label("4 CANAUX AXIONPAD NATIVE");
         ct.getStyleClass().add("card-title");
 
         fadersRow = new HBox(16);

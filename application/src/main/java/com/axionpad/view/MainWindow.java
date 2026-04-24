@@ -123,10 +123,26 @@ public class MainWindow {
             getClass().getResource("/com/axionpad/css/dark.css").toExternalForm());
         applyFontSize();
 
-        stage.setTitle("Axion Pad Configurator");
-        try {
-            stage.getIcons().add(new Image(getClass().getResourceAsStream("/com/axionpad/icons/logo1.png")));
-        } catch (Exception ignored) {}
+        stage.setTitle("AxionPad Configurator");
+        // Try icon.ico first, fall back to logo1.png — both are packaged in resources
+        boolean iconLoaded = false;
+        for (String iconPath : new String[]{"/com/axionpad/icons/icon.ico", "/com/axionpad/icons/logo1.png"}) {
+            try (java.io.InputStream is = getClass().getResourceAsStream(iconPath)) {
+                if (is != null) {
+                    Image img = new Image(is);
+                    if (!img.isError()) {
+                        stage.getIcons().clear();
+                        stage.getIcons().add(img);
+                        iconLoaded = true;
+                        com.axionpad.service.DebugLogger.log("[MainWindow] Stage icon loaded: " + iconPath);
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        if (!iconLoaded) {
+            com.axionpad.service.DebugLogger.log("[MainWindow] WARNING: no stage icon could be loaded");
+        }
         stage.setScene(scene);
         stage.setMinWidth(920);
         stage.setMinHeight(620);
@@ -430,7 +446,7 @@ public class MainWindow {
         }
 
         // Centered title
-        Label name = new Label("Axion Pad Configurator");
+        Label name = new Label("AxionPad Configurator");
         name.getStyleClass().add("title-name");
         Region spacerL = new Region(); HBox.setHgrow(spacerL, Priority.ALWAYS);
         Region spacerR = new Region(); HBox.setHgrow(spacerR, Priority.ALWAYS);
@@ -777,6 +793,17 @@ public class MainWindow {
                 connLabel.setText("Axion Pad connecté — Déconnecter");
             } else {
                 connLabel.setText("Connecter le pad");
+            }
+        });
+
+        // Watchdog recovery: red LED while searching, clears on reconnect
+        serialService.setOnSearching(searching -> {
+            connDot.getStyleClass().removeAll("dot-on", "dot-err");
+            connButton.getStyleClass().removeAll("conn-on", "conn-err");
+            if (searching) {
+                connDot.getStyleClass().add("dot-err");
+                connButton.getStyleClass().add("conn-err");
+                connLabel.setText("Searching...");
             }
         });
 
