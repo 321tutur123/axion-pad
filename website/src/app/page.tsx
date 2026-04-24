@@ -11,7 +11,7 @@ const ScrollScene = dynamic(() => import("@/components/3d/ScrollScene"), { ssr: 
 
 const FEATURES = [
   { title: "12 Touches macro", desc: "Programmables individuellement via l'app de configuration desktop." },
-  { title: "4 Potentiomètres", desc: "Contrôle du volume par application (protocole DEEJ)." },
+  { title: "4 Potentiomètres", desc: "Contrôle du volume par application (protocole AxionPad Native)." },
   { title: "RP2040 + CircuitPython", desc: "Firmware open-source, hackable à l'infini sans recompiler." },
   { title: "USB-C natif", desc: "Plug & play sur Windows, macOS et Linux." },
 ];

@@ -335,7 +335,7 @@
         }
       ],
       "specs": [
-        { "label": "PCB",     "value": "4 couches FR4, RP2040" },
+        { "label": "PCB",     "value": "2 couches FR4, RP2040" },
         { "label": "STL",     "value": "Fichiers inclus (impression 3D)" },
         { "label": "Soudage", "value": "Requis (kit nu)" },
         { "label": "Outils",  "value": "Fer à souder recommandé" }

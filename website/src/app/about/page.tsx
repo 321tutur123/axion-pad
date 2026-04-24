@@ -74,9 +74,9 @@ export default function AboutPage() {
               color: "#7c3aed",
             },
             {
-              title: "PCB 4 couches",
+              title: "PCB 2 couches",
               sub: "Conception maison",
-              desc: "Conçu sur KiCad. PCB FR4 4 couches avec potentiomètres ALPS et connecteur USB-C.",
+              desc: "Conçu sur KiCad. PCB FR4 2 couches haute stabilité avec potentiomètres ALPS, sockets Kailh Hot-swap et connecteur USB-C.",
               color: "#0891b2",
             },
             {
@@ -86,9 +86,9 @@ export default function AboutPage() {
               color: "#d97706",
             },
             {
-              title: "DEEJ",
-              sub: "Contrôle audio",
-              desc: "Les 4 potentiomètres s'intègrent avec DEEJ pour contrôler le volume par application.",
+              title: "AxionPad Native",
+              sub: "Protocole propriétaire",
+              desc: "Protocole bas-latence propriétaire avec Watchdog intégré pour la récupération automatique en cas de déconnexion.",
               color: "#7c3aed",
             },
           ].map(card => (

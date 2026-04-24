@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Logiciel Configurateur — Axion Pad",
-  description: "Configurez votre Axion Pad en quelques clics. Mappings, macros, layers, contrôle audio DEEJ. Gratuit, open-source, Windows / macOS / Linux.",
+  description: "Configurez votre Axion Pad en quelques clics. Mappings, macros, layers, protocole AxionPad Native, optimisation CPU ultra-faible. Gratuit, open-source, Windows / macOS / Linux.",
 };
 
 const FEATURES = [
@@ -27,8 +27,8 @@ const FEATURES = [
   },
   {
     icon: "🎚️",
-    title: "Mixeur DEEJ",
-    desc: "Contrôle le volume de chaque application indépendamment via les 4 potentiomètres. Spotify, Discord, navigateur... en même temps.",
+    title: "AxionPad Native",
+    desc: "Protocole propriétaire bas-latence avec Watchdog auto-recovery. Contrôle le volume de chaque application via les 4 potentiomètres. CPU ultra-faible.",
     color: "#d97706",
   },
   {
@@ -86,7 +86,7 @@ export default function SoftwarePage() {
             </h1>
             <p className="text-zinc-400 text-lg leading-relaxed mb-8">
               L'application desktop pour programmer ton Axion Pad sans toucher à une ligne de code.
-              Mappings, macros, layers, mixeur audio DEEJ — tout en quelques clics.
+              Mappings, macros, layers, protocole AxionPad Native — tout en quelques clics.
             </p>
             <div className="flex flex-wrap gap-3">
               <DownloadButton os="Windows" icon="🪟" ext=".exe" href="#download" primary />
@@ -127,13 +127,13 @@ export default function SoftwarePage() {
         </div>
       </section>
 
-      {/* ── DEEJ section ─────────────────────────────────────────────────── */}
+      {/* ── AxionPad Native section ──────────────────────────────────────── */}
       <section className="py-20 px-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <DeejMockup />
           <div>
             <div className="inline-block text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 mb-5">
-              Protocole DEEJ
+              Protocole AxionPad Native
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">
               Un potentiomètre,<br />un volume.
@@ -158,7 +158,7 @@ export default function SoftwarePage() {
               ))}
             </ul>
             <p className="text-zinc-600 text-xs mt-5">
-              Compatible avec l'appli DEEJ open-source ou le mode natif Axion.
+              Protocole AxionPad Native — bas-latence, Watchdog auto-recovery intégré.
             </p>
           </div>
         </div>
@@ -310,7 +310,7 @@ function AppMockup() {
           <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
           <div className="w-3 h-3 rounded-full bg-green-500/70" />
         </div>
-        <span className="text-xs text-zinc-500 font-medium">Axion Pad Configurator</span>
+        <span className="text-xs text-zinc-500 font-medium">AxionPad Configurator</span>
         <div className="w-14" />
       </div>
 
@@ -399,7 +399,7 @@ function DeejMockup() {
     <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-xl shadow-amber-950/10">
       <div className="text-xs text-zinc-500 uppercase tracking-wider mb-5 flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-        Mixeur DEEJ — en direct
+        AxionPad Native — en direct
       </div>
       <div className="flex items-end gap-4 justify-center">
         {channels.map((ch, i) => (
