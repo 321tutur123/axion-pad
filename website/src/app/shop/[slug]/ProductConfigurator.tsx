@@ -99,9 +99,11 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
 
         <button
           onClick={handleAddToCart}
-          disabled={!product.inStock || adding}
+          disabled={product.comingSoon || !product.inStock || adding}
           className={`w-full py-4 rounded-2xl font-semibold text-base transition-all ${
-            !product.inStock
+            product.comingSoon
+              ? "bg-white/5 text-zinc-500 cursor-not-allowed"
+              : !product.inStock
               ? "bg-white/5 text-zinc-600 cursor-not-allowed"
               : done
               ? "bg-green-600 text-white scale-[0.99]"
@@ -110,7 +112,9 @@ export default function ProductConfigurator({ product }: { product: ProductVaria
               : "bg-violet-600 hover:bg-violet-500 text-white hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-violet-900/30"
           }`}
         >
-          {!product.inStock
+          {product.comingSoon
+            ? "Bientôt disponible"
+            : !product.inStock
             ? "Rupture de stock"
             : done
             ? "✓ Ajouté au panier"

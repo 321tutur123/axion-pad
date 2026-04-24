@@ -88,7 +88,8 @@
       "price": 12999,
       "comparePrice": 15999,
       "category": "macro-pads",
-      "badge": "Nouveau",
+      "badge": "Bientôt",
+      "comingSoon": true,
       "stock": 12,
       "imagePath": "/images/products/axion-pad-pro.jpg",
       "options": [
@@ -162,6 +163,7 @@
       "longDescription": "L'Axion Pad Mini concentre l'essentiel en 6 touches mécaniques. Format 3×2 ultra-compact, il se glisse partout et se configure en quelques minutes.",
       "price": 5999,
       "category": "macro-pads",
+      "comingSoon": true,
       "stock": 0,
       "imagePath": "/images/products/axion-pad-mini.jpg",
       "options": [
@@ -224,6 +226,7 @@
       "price": 17999,
       "comparePrice": 19999,
       "category": "macro-pads",
+      "comingSoon": true,
       "stock": 8,
       "imagePath": "/images/products/axion-pad-xl.jpg",
       "options": [
@@ -351,7 +354,7 @@
       "slug": "kit-pcb",
       "name": "Kit PCB seul",
       "tagline": "PCB RP2040 pour projets custom",
-      "description": "PCB RP2040 nu 4 couches. Soudage requis.",
+      "description": "PCB RP2040 nu 2 couches. Soudage requis.",
       "longDescription": "Le PCB seul pour les makers qui veulent construire un boîtier entièrement custom. Tout-monté côté SMD, tu n'as qu'à souder les switches et les potentiomètres.",
       "price": 2299,
       "category": "kits",
@@ -370,7 +373,7 @@
       ],
       "specs": [
         { "label": "MCU",     "value": "RP2040" },
-        { "label": "Couches", "value": "4 couches FR4" },
+        { "label": "Couches", "value": "2 couches FR4" },
         { "label": "Dims",    "value": "80 × 60 mm" },
         { "label": "Flash",   "value": "2 MB QSPI" }
       ],

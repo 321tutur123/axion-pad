@@ -31,7 +31,8 @@ export interface ProductVariantFull {
   category: string;
   badge?: string;
   stock: number;        // 0 = out of stock
-  inStock: boolean;     // derived: stock > 0
+  inStock: boolean;     // derived: stock > 0 && !comingSoon
+  comingSoon?: boolean; // true = En développement, no purchase
   imagePath: string;    // drop file at public/ + imagePath
   description: string;
   longDescription: string;
@@ -57,7 +58,7 @@ type RawProduct = Omit<ProductVariantFull, "inStock">;
 const PRODUCTS: Record<string, ProductVariantFull> = Object.fromEntries(
   (rawData.products as unknown as RawProduct[]).map(p => [
     p.slug,
-    { ...p, inStock: p.stock > 0 },
+    { ...p, inStock: p.stock > 0 && !p.comingSoon },
   ])
 );
 

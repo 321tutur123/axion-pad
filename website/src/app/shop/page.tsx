@@ -72,7 +72,9 @@ function ProductCard({ product }: { product: ProductVariantFull }) {
             )}
           </div>
 
-          {!product.inStock
+          {product.comingSoon
+            ? <span className="text-xs text-zinc-500 italic">En développement</span>
+            : !product.inStock
             ? <span className="text-xs text-zinc-600">Rupture</span>
             : (
               <button
