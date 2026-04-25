@@ -55,8 +55,8 @@
           "type": "select",
           "choices": [
             { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
-            { "value": "kmk",           "label": "KMK Firmware",                  "available": true },
-            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available": true, "badge": "Beta" }
+            { "value": "kmk",           "label": "KMK Firmware",                  "available": false},
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available": false, "badge": "Beta" }
           ]
         }
       ],
@@ -131,8 +131,8 @@
           "type": "select",
           "choices": [
             { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
-            { "value": "kmk",           "label": "KMK Firmware",                  "available": true },
-            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available": true, "badge": "Beta" }
+            { "value": "kmk",           "label": "KMK Firmware",                  "available":  false },
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available":  false, "badge": "Beta" }
           ]
         }
       ],
@@ -280,8 +280,8 @@
           "type": "select",
           "choices": [
             { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
-            { "value": "kmk",           "label": "KMK Firmware",                  "available": true },
-            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available": true, "badge": "Beta" }
+            { "value": "kmk",           "label": "KMK Firmware",                  "available":  false },
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available":  false, "badge": "Beta" }
           ]
         }
       ],
