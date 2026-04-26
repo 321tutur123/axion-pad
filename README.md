@@ -13,9 +13,9 @@ AxionPad is a compact, programmable macro pad powered by an RP2040 microcontroll
 
 | Model | Keys | Faders | RGB | OLED |
 |---|---|---|---|---|
-| **Mini** | 6 | 2 | Yes | — |
-| **Standard** | 12 | 4 | Yes | — |
-| **XL** | 12 | 4 | Yes | Yes |
+| **Mini** | 6 | — | Optional | — |
+| **Standard** | 12 | 4 | Optional | — |
+| **XL** | 12 | 4 | Yes | Optional |
 
 All models ship with the **AxionPad Native** configurator for Windows.
 
