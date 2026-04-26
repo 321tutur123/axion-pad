@@ -4,6 +4,9 @@ import com.axionpad.service.ConfigService;
 import com.axionpad.service.DebugLogger;
 import com.axionpad.service.I18n;
 import com.axionpad.service.KeyHookService;
+import com.axionpad.service.OledService;
+import com.axionpad.service.OpenRgbServer;
+import com.axionpad.service.RgbService;
 import com.axionpad.service.SerialService;
 import com.axionpad.service.SettingsService;
 import com.axionpad.service.WindowsVolumeService;
@@ -24,6 +27,7 @@ import java.io.InputStream;
 public class AxionPadApp extends Application {
 
     private TrayIcon trayIcon;
+    private volatile boolean shuttingDown = false;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -35,11 +39,30 @@ public class AxionPadApp extends Application {
             // Empêche JavaFX de quitter quand la fenêtre est cachée
             Platform.setImplicitExit(false);
 
-            // Services
+            // Ensures cleanup runs even on SIGTERM / Task-Manager kill
+            Runtime.getRuntime().addShutdownHook(new Thread(this::performCleanup, "ShutdownHook"));
+
+            // Services core
             SettingsService.getInstance().load();
             I18n.setLanguage(SettingsService.getInstance().getSettings().getLanguage());
             ConfigService.getInstance().load();
             KeyHookService.getInstance().start();
+
+            // Injecter la config RGB dans RgbService (avant la connexion)
+            RgbService.getInstance().init(ConfigService.getInstance().getConfig().getRgb());
+
+            // Démarrer le serveur HTTP RGB (SignalRGB / OpenRGB)
+            OpenRgbServer.getInstance().start();
+
+            // Câblage des services RGB et OLED sur chaque connexion
+            SerialService.getInstance().addConnectionListener(connected -> {
+                if (connected) {
+                    RgbService.getInstance().onConnected();
+                    OledService.getInstance().onConnected();
+                } else {
+                    OledService.getInstance().stop();
+                }
+            });
 
             boolean minimized = getParameters().getRaw().contains("--minimized");
             DebugLogger.log("[AxionPadApp] start()  args=" + getParameters().getRaw()
@@ -48,11 +71,15 @@ public class AxionPadApp extends Application {
             // Fenêtre principale — initialisée sans flash en mode minimized
             MainWindow mainWindow = new MainWindow(primaryStage, ConfigService.getInstance());
             if (minimized) {
-                mainWindow.initScene();   // construit la scène sans appeler stage.show()
+                mainWindow.initScene();
             } else {
                 mainWindow.show();
                 primaryStage.hide();
             }
+
+            // Mode minimisé → 0% CPU idle : suspend les callbacks UI FX + POLL:LOW firmware
+            primaryStage.showingProperty().addListener((obs, wasShowing, isShowing) ->
+                SerialService.getInstance().setUiMinimized(!isShowing));
 
             // System tray
             if (SystemTray.isSupported()) {
@@ -162,23 +189,37 @@ public class AxionPadApp extends Application {
 
     // ── Cleanup complet ───────────────────────────────────────────────
 
-    private void fullExit() {
+    /**
+     * Idempotent — safe to call from fullExit(), stop(), and the shutdown hook.
+     * Removes the tray icon so the non-daemon AWT EventQueue thread can exit.
+     */
+    private void performCleanup() {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        OledService.getInstance().stop();
+        OpenRgbServer.getInstance().stop();
         KeyHookService.getInstance().stop();
         WindowsVolumeService.getInstance().close();
         SerialService.getInstance().stopAutoConnect();
         SerialService.getInstance().disconnect();
         ConfigService.getInstance().save();
-        if (trayIcon != null) SystemTray.getSystemTray().remove(trayIcon);
+        if (trayIcon != null) {
+            SystemTray.getSystemTray().remove(trayIcon);
+            trayIcon = null;
+        }
+    }
+
+    private void fullExit() {
+        performCleanup();
         Platform.exit();
         System.exit(0);
     }
 
     @Override
     public void stop() {
-        KeyHookService.getInstance().stop();
-        WindowsVolumeService.getInstance().close();
-        SerialService.getInstance().stopAutoConnect();
-        SerialService.getInstance().disconnect();
-        ConfigService.getInstance().save();
+        performCleanup();
+        // System.exit is required: the non-daemon AWT SystemTray thread keeps the
+        // JVM alive indefinitely after Platform.exit() unless we force a JVM halt.
+        System.exit(0);
     }
 }

@@ -1,9 +1,11 @@
 package com.axionpad.controller;
 
+import com.axionpad.model.DeviceModel;
 import com.axionpad.model.KeyConfig;
 import com.axionpad.model.KeyConfig.ActionType;
 import com.axionpad.model.PadConfig;
 import com.axionpad.service.ConfigService;
+import com.axionpad.service.SerialService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -233,9 +235,10 @@ public class KeysController {
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-        for (int i = 0; i < 4; i++) {
+        int cols = getModelCols();
+        for (int i = 0; i < cols; i++) {
             ColumnConstraints cc = new ColumnConstraints();
-            cc.setPercentWidth(25);
+            cc.setPercentWidth(100.0 / cols);
             grid.getColumnConstraints().add(cc);
         }
         refreshGrid(grid);
@@ -244,13 +247,20 @@ public class KeysController {
 
     private void refreshGrid(GridPane grid) {
         grid.getChildren().clear();
-        for (int i = 0; i < 12; i++) {
+        DeviceModel model = SerialService.getInstance().getDetectedModel();
+        int keyCount = (model.keyCount > 0) ? model.keyCount : 12;
+        int cols     = getModelCols();
+        for (int i = 0; i < keyCount; i++) {
             final int idx = i;
             KeyConfig k = cfg.getConfig().getLayerKey(currentLayer, i);
-            System.err.println("[Grid] T" + (i+1) + " label=" + k.getLabel() + " type=" + k.getActionType());
             VBox cell = buildKeyCell(k, idx);
-            grid.add(cell, i % 4, i / 4);
+            grid.add(cell, i % cols, i / cols);
         }
+    }
+
+    private int getModelCols() {
+        int[] shape = SerialService.getInstance().getDetectedModel().gridShape();
+        return (shape[1] > 0) ? shape[1] : 4;
     }
 
     private VBox buildKeyCell(KeyConfig k, int idx) {

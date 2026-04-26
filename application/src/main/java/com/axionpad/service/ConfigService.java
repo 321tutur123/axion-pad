@@ -1,5 +1,6 @@
 package com.axionpad.service;
 
+import com.axionpad.model.DeviceModel;
 import com.axionpad.model.KeyConfig;
 import com.axionpad.model.PadConfig;
 import com.axionpad.model.SliderConfig;
@@ -130,6 +131,18 @@ public class ConfigService {
     }
 
     public PadConfig getConfig() { return config; }
+
+    // ── Model-aware initialisation ────────────────────────────────────
+
+    /**
+     * Ajuste le nombre de sliders dans la config en fonction du modèle détecté.
+     * Étend la liste si nécessaire ; ne la rétrécit pas pour préserver les données.
+     */
+    public void initSlidersForModel(DeviceModel model) {
+        if (model == DeviceModel.UNKNOWN) return;
+        config.ensureSliderCount(model.potCount);
+        RgbService.getInstance().init(config.getRgb());
+    }
 
     // ── User Presets ─────────────────────────────────────────────────
 

@@ -1,7 +1,9 @@
 package com.axionpad.controller;
 
+import com.axionpad.model.DeviceModel;
 import com.axionpad.model.SliderConfig;
 import com.axionpad.service.ConfigService;
+import com.axionpad.service.SerialService;
 import com.axionpad.service.WindowsVolumeService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -22,10 +24,13 @@ public class SlidersController {
     private static final double FADER_H = 130;
     private static final double KNOB_R  = 9;
 
-    // ── Channel metadata ────────────────────────────────────────────────────
-    private static final String[] COLORS  = { "#7c3aed", "#059669", "#0891b2", "#d97706" };
-    private static final String[] EMOJIS  = { "🔊", "🎵", "🎧", "🌐" };
-    private static final String[] NAMES   = { "Channel 1", "Channel 2", "Channel 3", "Channel 4" };
+    // ── Channel metadata (étendu à 6 pour le modèle XL) ────────────────────
+    private static final String[] COLORS = {
+        "#7c3aed", "#059669", "#0891b2", "#d97706", "#dc2626", "#ea580c" };
+    private static final String[] EMOJIS = {
+        "🔊", "🎵", "🎧", "🌐", "🎤", "🎼" };
+    private static final String[] NAMES = {
+        "Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6" };
 
     // ── State ────────────────────────────────────────────────────────────────
     private final ConfigService cfg;
@@ -73,13 +78,24 @@ public class SlidersController {
         VBox card = new VBox(12);
         card.getStyleClass().add("card");
 
-        Label ct = new Label("4 CANAUX AXIONPAD NATIVE");
+        int potCount = getModelPotCount();
+        String ctText = potCount == 0
+            ? "AUCUN POTENTIOMÈTRE (modèle Mini)"
+            : potCount + " CANAUX AXIONPAD NATIVE";
+        Label ct = new Label(ctText);
         ct.getStyleClass().add("card-title");
 
         fadersRow = new HBox(16);
         fadersRow.setAlignment(Pos.CENTER);
         fadersRow.setPadding(new Insets(12, 0, 4, 0));
-        refreshFadersRow();
+
+        if (potCount == 0) {
+            Label noSliders = new Label("Le modèle AxionPad Mini n'a pas de potentiomètres.");
+            noSliders.setStyle("-fx-text-fill: rgba(255,255,255,0.35); -fx-font-size: 12px;");
+            fadersRow.getChildren().add(noSliders);
+        } else {
+            refreshFadersRow();
+        }
 
         card.getChildren().addAll(ct, fadersRow);
 
@@ -92,15 +108,10 @@ public class SlidersController {
         return root;
     }
 
-    /**
-     * Called by the serial read loop (background thread → Platform.runLater already applied
-     * by the caller in SerialService).
-     */
     public void updateSliderValues(int[] vals) {
-        if (vals == null || vals.length < 4) return;
-        if (fillBars.size() < 4 || knobNodes.size() < 4 || pctLabels.size() < 4) return;
-
-        for (int i = 0; i < 4; i++) {
+        if (vals == null) return;
+        int n = Math.min(fillBars.size(), Math.min(pctLabels.size(), vals.length));
+        for (int i = 0; i < n; i++) {
             SliderConfig s = cfg.getConfig().getSlider(i);
             if (s.isMuted()) continue;
 
@@ -144,7 +155,7 @@ public class SlidersController {
     }
 
     public void updateActivityDots(List<String> sessions) {
-        for (int i = 0; i < 4 && i < activityDots.size(); i++) {
+        for (int i = 0; i < activityDots.size(); i++) {
             String ch = cfg.getConfig().getSlider(i).getChannel();
             boolean active = ch != null && !ch.isBlank() && (
                     sessions.stream().anyMatch(ses -> ses.equalsIgnoreCase(ch))
@@ -173,9 +184,15 @@ public class SlidersController {
         muteBtns.clear();
         activityDots.clear();
 
-        for (int i = 0; i < 4; i++) {
+        int potCount = getModelPotCount();
+        for (int i = 0; i < potCount; i++) {
             fadersRow.getChildren().add(buildFaderCard(i));
         }
+    }
+
+    private int getModelPotCount() {
+        DeviceModel model = SerialService.getInstance().getDetectedModel();
+        return (model == DeviceModel.UNKNOWN) ? 4 : model.potCount;
     }
 
     private VBox buildFaderCard(int idx) {

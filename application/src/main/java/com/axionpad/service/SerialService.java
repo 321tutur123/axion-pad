@@ -1,8 +1,10 @@
 package com.axionpad.service;
 
+import com.axionpad.model.DeviceModel;
 import com.fazecast.jSerialComm.SerialPort;
 import javafx.application.Platform;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -14,42 +16,60 @@ import java.util.function.Consumer;
 
 /**
  * Service de communication série avec l'Axion Pad.
- * Utilise jSerialComm pour la compatibilité Windows / macOS / Linux.
- * Lit le format DEEJ : "val1|val2|val3|val4\n"
+ *
+ * Nouveautés v2.0 :
+ *  - Détection automatique du modèle depuis la ligne "AXIONPAD:MODEL"
+ *  - Callback brut (onRawSliderValues) pour le contrôle du volume sans FX thread
+ *  - Mode minimisé : les mises à jour UI sont suspendues → 0% CPU idle
+ *  - POLL:LOW/HIGH envoyé au firmware quand la fenêtre est cachée
+ *  - Détection de changement : la callback UI n'est déclenchée que si les valeurs ont changé
+ *  - sendCommand() pour RGB / OLED / SYNC
  */
 public class SerialService {
 
     private static SerialService instance;
 
-    // On a startup launch, wait for USB drivers to finish enumerating before
-    // the first connection attempt. Without this delay the scheduler latches
-    // onto the wrong COM port, marks itself "connected", and never retries.
     private static final int STARTUP_DELAY_SECONDS = 12;
     private static final int POLL_INTERVAL_SECONDS  = 3;
 
     private SerialPort port;
-    private volatile boolean running = false;
-    private ExecutorService executor;
+    private volatile boolean running    = false;
+    private ExecutorService  executor;
     private ScheduledExecutorService autoConnectScheduler;
+    private ScheduledExecutorService identificationScheduler;
     private volatile boolean connecting = false;
     private final List<Consumer<Boolean>> connectionListeners = new CopyOnWriteArrayList<>();
 
-    // Watchdog: fires recovery if no data arrives within this window
+    // Watchdog
     private static final int WATCHDOG_TIMEOUT_MS  = 5000;
-    private static final int WATCHDOG_TICK_SECONDS = 2;   // check every 2s — ultra-low CPU
+    private static final int WATCHDOG_TICK_SECONDS = 2;
     private volatile long lastDataTime = 0;
     private ScheduledExecutorService watchdogScheduler;
 
-    // Slider UI throttle — cap at 20 fps to keep CPU near zero
+    // UI throttle — 20 fps max
     private static final long SLIDER_UI_INTERVAL_MS = 50;
     private volatile long lastSliderUiTime = 0;
 
-    // Callbacks
-    private Consumer<int[]>  onSliderValues;
-    private Consumer<String> onLogMessage;
-    private Consumer<Boolean> onConnectionChanged;
-    private Consumer<String> onStatusMessage;   // tray tooltip / status bar
-    private Consumer<Boolean> onSearching;       // true = recovering/searching, false = done
+    // ── Nouveaux champs v2.0 ──────────────────────────────────
+
+    /** Suspend toutes les mises à jour UI (FX thread). Le volume reste fonctionnel. */
+    private volatile boolean uiMinimized = false;
+
+    /** Modèle détecté depuis la ligne d'identification firmware. */
+    private volatile DeviceModel detectedModel = DeviceModel.UNKNOWN;
+
+    /** Dernières valeurs connues : déclenche la callback UI seulement en cas de changement. */
+    private volatile int[] lastSliderVals = null;
+
+    // ── Callbacks ─────────────────────────────────────────────
+
+    private Consumer<int[]>       onSliderValues;      // UI (FX thread, throttlé)
+    private Consumer<int[]>       onRawSliderValues;   // volume/fonctionnel (thread série)
+    private Consumer<String>      onLogMessage;
+    private Consumer<Boolean>     onConnectionChanged;
+    private Consumer<String>      onStatusMessage;
+    private Consumer<Boolean>     onSearching;
+    private Consumer<DeviceModel> onModelDetected;     // appelé quand le firmware annonce son modèle
 
     private SerialService() {}
 
@@ -58,21 +78,17 @@ public class SerialService {
         return instance;
     }
 
-    /** Liste tous les ports série disponibles sur l'OS. */
+    // ── Port listing ──────────────────────────────────────────
+
     public List<String> listPorts() {
         List<String> ports = new ArrayList<>();
-        for (SerialPort p : SerialPort.getCommPorts()) {
+        for (SerialPort p : SerialPort.getCommPorts())
             ports.add(p.getSystemPortName() + " — " + p.getDescriptivePortName());
-        }
         return ports;
     }
 
-    /** Retourne les ports bruts (pour connexion). */
-    public SerialPort[] getRawPorts() {
-        return SerialPort.getCommPorts();
-    }
+    public SerialPort[] getRawPorts() { return SerialPort.getCommPorts(); }
 
-    /** Tente de détecter automatiquement le port de l'Axion Pad. */
     public SerialPort autoDetectPort() {
         for (SerialPort p : SerialPort.getCommPorts()) {
             String desc = p.getDescriptivePortName().toLowerCase();
@@ -87,10 +103,8 @@ public class SerialService {
         return all.length > 0 ? all[0] : null;
     }
 
-    /**
-     * Ouvre la connexion série et démarre la lecture en arrière-plan.
-     * @param port Port à ouvrir
-     */
+    // ── Connexion ─────────────────────────────────────────────
+
     public boolean connect(SerialPort port) {
         if (connecting) return false;
         connecting = true;
@@ -106,12 +120,11 @@ public class SerialService {
             port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 1000, 0);
 
             if (!port.openPort()) {
-                DebugLogger.log("[connect] openPort() returned false for " + port.getSystemPortName());
+                DebugLogger.log("[connect] openPort() returned false");
                 log("Impossible d'ouvrir le port " + port.getSystemPortName(), true);
                 return false;
             }
 
-            DebugLogger.log("[connect] Port opened — starting reader thread");
             running = true;
             notifySearching(false);
             notifyConnection(true);
@@ -126,13 +139,14 @@ public class SerialService {
             executor.submit(() -> {
                 try {
                     Thread.sleep(300);
-                    port.writeBytes(new byte[]{0x02}, 1);  // Ctrl+B : quitte le raw REPL
+                    port.writeBytes(new byte[]{0x02}, 1);  // Ctrl+B
                     Thread.sleep(200);
-                    port.writeBytes(new byte[]{0x04}, 1);  // Ctrl+D : soft reset → relance code.py
-                    Thread.sleep(2000);                     // Attendre le redémarrage complet
+                    port.writeBytes(new byte[]{0x04}, 1);  // Ctrl+D (soft reset)
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) { return; }
                 lastDataTime = System.currentTimeMillis();
                 startWatchdog();
+                startIdentification();
                 readLoop();
             });
             return true;
@@ -141,7 +155,8 @@ public class SerialService {
         }
     }
 
-    /** Boucle de lecture série (thread dédié). */
+    // ── Boucle de lecture ─────────────────────────────────────
+
     private void readLoop() {
         StringBuilder buf = new StringBuilder();
         byte[] tmp = new byte[256];
@@ -152,7 +167,7 @@ public class SerialService {
                 if (n <= 0) continue;
                 lastDataTime = System.currentTimeMillis();
 
-                String chunk = new String(tmp, 0, n, java.nio.charset.StandardCharsets.UTF_8);
+                String chunk = new String(tmp, 0, n, StandardCharsets.UTF_8);
                 buf.append(chunk.replace("\r\n", "\n").replace("\r", "\n"));
 
                 int idx;
@@ -161,11 +176,30 @@ public class SerialService {
                     buf.delete(0, idx + 1);
                     if (line.isEmpty()) continue;
 
-                    if (line.matches("\\d+\\|\\d+\\|\\d+\\|\\d+")) {
+                    // ── Identification modèle ────────────────
+                    if (line.startsWith("AXIONPAD:") && !line.equals("AXIONPAD:READY")) {
+                        String token = line.substring("AXIONPAD:".length());
+                        DeviceModel model = DeviceModel.fromString(token);
+                        detectedModel = model;
+                        stopIdentification();
+                        DebugLogger.log("[readLoop] Model detected: " + model);
+                        if (onModelDetected != null)
+                            Platform.runLater(() -> onModelDetected.accept(model));
+                        continue;
+                    }
+
+                    // ── Données ADC (N valeurs séparées par |) ─
+                    if (line.matches("\\d+(\\|\\d+)*")) {
                         String[] parts = line.split("\\|");
-                        int[] vals = new int[4];
-                        for (int i = 0; i < 4; i++)
+                        int[] vals = new int[parts.length];
+                        for (int i = 0; i < parts.length; i++)
                             vals[i] = Math.max(0, Math.min(1023, Integer.parseInt(parts[i])));
+
+                        // Callback brut sur le thread série (volume, pas de FX overhead)
+                        if (onRawSliderValues != null)
+                            onRawSliderValues.accept(vals);
+
+                        // Callback UI throttlé + détection de changement
                         notifySliders(vals);
                     } else {
                         log(line, false);
@@ -187,16 +221,44 @@ public class SerialService {
         }
     }
 
-    /** Ferme la connexion proprement. */
+    // ── Envoi de commande au firmware ─────────────────────────
+
+    /** Envoie une commande au firmware (RGB, OLED, POLL, SYNC). Sans \n terminal. */
+    public void sendCommand(String cmd) {
+        if (port == null || !port.isOpen()) return;
+        try {
+            byte[] data = (cmd + "\n").getBytes(StandardCharsets.UTF_8);
+            port.writeBytes(data, data.length);
+            DebugLogger.log("[sendCommand] → " + cmd);
+        } catch (Exception e) {
+            DebugLogger.log("[sendCommand] Error: " + e.getMessage());
+        }
+    }
+
+    // ── Mode minimisé ─────────────────────────────────────────
+
+    /**
+     * Active/désactive le mode minimisé.
+     * Quand actif : les callbacks UI ne sont plus émis (0% CPU JavaFX).
+     * Le firmware reçoit POLL:LOW (0.5 Hz) pour réduire le trafic USB.
+     */
+    public void setUiMinimized(boolean minimized) {
+        this.uiMinimized = minimized;
+        this.lastSliderVals = null; // force refresh lors du retour au premier plan
+        if (isConnected()) sendCommand(minimized ? "POLL:LOW" : "POLL:HIGH");
+    }
+
+    // ── Déconnexion ───────────────────────────────────────────
+
     public void disconnect() {
         boolean wasConnected = running;
         running = false;
+        detectedModel = DeviceModel.UNKNOWN;
+        stopIdentification();
         stopWatchdog();
         if (executor != null) { executor.shutdownNow(); executor = null; }
-        if (port != null && port.isOpen()) { port.closePort(); }
+        if (port != null && port.isOpen()) port.closePort();
         port = null;
-        // Only fire the notification if we were actually connected — avoids
-        // spurious "disconnected" tray popups during the startup scan.
         if (wasConnected) notifyConnection(false);
     }
 
@@ -204,7 +266,7 @@ public class SerialService {
         return running && port != null && port.isOpen();
     }
 
-    // ── Watchdog ──────────────────────────────────────────────────────
+    // ── Watchdog ──────────────────────────────────────────────
 
     private void startWatchdog() {
         stopWatchdog();
@@ -216,11 +278,8 @@ public class SerialService {
         watchdogScheduler.scheduleAtFixedRate(() -> {
             try {
                 if (!running) return;
-                long elapsed = System.currentTimeMillis() - lastDataTime;
-                if (elapsed > WATCHDOG_TIMEOUT_MS) {
-                    DebugLogger.log("[Watchdog] Connection lost - Attempting recovery...");
+                if (System.currentTimeMillis() - lastDataTime > WATCHDOG_TIMEOUT_MS)
                     triggerRecovery();
-                }
             } catch (Throwable t) {
                 DebugLogger.log("[Watchdog] Exception: " + t.getMessage());
             }
@@ -228,18 +287,42 @@ public class SerialService {
     }
 
     private void stopWatchdog() {
-        if (watchdogScheduler != null) {
-            watchdogScheduler.shutdownNow();
-            watchdogScheduler = null;
+        if (watchdogScheduler != null) { watchdogScheduler.shutdownNow(); watchdogScheduler = null; }
+    }
+
+    // ── Identification handshake ──────────────────────────────
+
+    private void startIdentification() {
+        stopIdentification();
+        identificationScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "DeviceIdentification");
+            t.setDaemon(true);
+            return t;
+        });
+        identificationScheduler.scheduleAtFixedRate(() -> {
+            if (detectedModel != DeviceModel.UNKNOWN) {
+                stopIdentification();
+                return;
+            }
+            sendCommand("WHO_ARE_YOU");
+            DebugLogger.log("[Identification] Sent WHO_ARE_YOU");
+        }, 0, 2, TimeUnit.SECONDS);
+    }
+
+    private void stopIdentification() {
+        if (identificationScheduler != null) {
+            identificationScheduler.shutdownNow();
+            identificationScheduler = null;
         }
     }
 
-    /** Closes the port and signals the UI to show the recovery state. Auto-connect will reconnect. */
     private void triggerRecovery() {
         running = false;
+        detectedModel = DeviceModel.UNKNOWN;
+        stopIdentification();
         stopWatchdog();
         if (executor != null) { executor.shutdownNow(); executor = null; }
-        if (port != null && port.isOpen()) { port.closePort(); }
+        if (port != null && port.isOpen()) port.closePort();
         port = null;
         notifySearching(true);
         notifyConnection(false);
@@ -247,14 +330,27 @@ public class SerialService {
         log("Connection lost - Attempting recovery...", true);
     }
 
-    // ── Notifications thread-safe (Platform.runLater) ─────────────────
+    // ── Notifications ─────────────────────────────────────────
 
     private void notifySliders(int[] vals) {
         if (onSliderValues == null) return;
+        // Suspend UI quand la fenêtre est cachée
+        if (uiMinimized) return;
+        // Détection de changement — évite les runLater inutiles au repos
+        if (lastSliderVals != null && lastSliderVals.length == vals.length) {
+            boolean changed = false;
+            for (int i = 0; i < vals.length; i++) {
+                if (vals[i] != lastSliderVals[i]) { changed = true; break; }
+            }
+            if (!changed) return;
+        }
+        lastSliderVals = vals.clone();
+        // Throttle 20 fps
         long now = System.currentTimeMillis();
         if (now - lastSliderUiTime < SLIDER_UI_INTERVAL_MS) return;
         lastSliderUiTime = now;
-        Platform.runLater(() -> onSliderValues.accept(vals));
+        final int[] snapshot = vals.clone();
+        Platform.runLater(() -> onSliderValues.accept(snapshot));
     }
 
     private void log(String msg, boolean error) {
@@ -279,26 +375,24 @@ public class SerialService {
             Platform.runLater(() -> onSearching.accept(searching));
     }
 
-    // ── Setters callbacks ─────────────────────────────────────────────
+    // ── Setters callbacks ─────────────────────────────────────
 
-    public void setOnSliderValues(Consumer<int[]> cb)       { this.onSliderValues = cb; }
-    public void setOnLogMessage(Consumer<String> cb)         { this.onLogMessage = cb; }
-    public void setOnConnectionChanged(Consumer<Boolean> cb) { this.onConnectionChanged = cb; }
-    public void setOnStatusMessage(Consumer<String> cb)      { this.onStatusMessage = cb; }
-    public void setOnSearching(Consumer<Boolean> cb)         { this.onSearching = cb; }
-    public void addConnectionListener(Consumer<Boolean> cb)  { connectionListeners.add(cb); }
+    public void setOnSliderValues(Consumer<int[]> cb)        { this.onSliderValues     = cb; }
+    public void setOnRawSliderValues(Consumer<int[]> cb)     { this.onRawSliderValues  = cb; }
+    public void setOnLogMessage(Consumer<String> cb)          { this.onLogMessage       = cb; }
+    public void setOnConnectionChanged(Consumer<Boolean> cb)  { this.onConnectionChanged = cb; }
+    public void setOnStatusMessage(Consumer<String> cb)       { this.onStatusMessage    = cb; }
+    public void setOnSearching(Consumer<Boolean> cb)          { this.onSearching        = cb; }
+    public void setOnModelDetected(Consumer<DeviceModel> cb)  { this.onModelDetected    = cb; }
+    public void addConnectionListener(Consumer<Boolean> cb)   { connectionListeners.add(cb); }
 
-    // ── Auto-connect ──────────────────────────────────────────────────
+    // ── Getters ───────────────────────────────────────────────
 
-    /**
-     * Démarre la surveillance de connexion en arrière-plan.
-     *
-     * @param isStartupLaunch true quand l'app est lancée automatiquement au
-     *                        démarrage Windows (flag --minimized). Un délai
-     *                        initial de {@value STARTUP_DELAY_SECONDS}s laisse
-     *                        le temps aux pilotes USB de s'initialiser avant
-     *                        le premier scan.
-     */
+    public DeviceModel getDetectedModel() { return detectedModel; }
+    public boolean     isUiMinimized()    { return uiMinimized; }
+
+    // ── Auto-connect ──────────────────────────────────────────
+
     public void startAutoConnect(boolean isStartupLaunch) {
         if (autoConnectScheduler != null && !autoConnectScheduler.isShutdown()) return;
 
@@ -309,30 +403,19 @@ public class SerialService {
         });
 
         long initialDelay = isStartupLaunch ? STARTUP_DELAY_SECONDS : 1L;
-
         DebugLogger.log("[startAutoConnect] isStartupLaunch=" + isStartupLaunch
-                + "  initialDelay=" + initialDelay + "s  pollInterval=" + POLL_INTERVAL_SECONDS + "s");
+                + "  initialDelay=" + initialDelay + "s");
 
-        if (isStartupLaunch) {
+        if (isStartupLaunch)
             notifyStatus("Démarrage — attente des pilotes USB (" + STARTUP_DELAY_SECONDS + "s)...");
-        }
 
-        // scheduleWithFixedDelay: the next scan only begins AFTER the current one
-        // finishes. This prevents overlapping attempts when connect() blocks for
-        // ~2.5 s during the CircuitPython handshake.
-        //
-        // IMPORTANT: the entire body is wrapped in try/catch(Throwable). If any
-        // unchecked exception escapes the Runnable, ScheduledExecutorService
-        // silently cancels all future executions — the scheduler dies with no
-        // error visible anywhere. The catch logs the exception and keeps polling.
         autoConnectScheduler.scheduleWithFixedDelay(() -> {
             try {
                 if (isConnected()) return;
-
                 notifyStatus("Recherche de l'Axion Pad...");
 
                 SerialPort[] ports = SerialPort.getCommPorts();
-                DebugLogger.log("[AutoConnect] Scan — " + ports.length + " port(s) visible");
+                DebugLogger.log("[AutoConnect] Scan — " + ports.length + " port(s)");
 
                 SerialPort target = null;
                 for (SerialPort p : ports) {
@@ -340,11 +423,7 @@ public class SerialService {
                     int    vid  = p.getVendorID();
                     DebugLogger.log("[AutoConnect]   " + p.getSystemPortName()
                             + " — \"" + desc + "\"  VID=0x" + String.format("%04X", vid));
-                    System.out.printf("[AutoConnect] %s — \"%s\"  VID=0x%04X%n",
-                        p.getSystemPortName(), desc, vid);
 
-                    // Only connect to a confirmed AxionPad — no generic "USB Serial"
-                    // fallback, which was latching onto unrelated devices on boot.
                     if (desc.contains("CircuitPython") || desc.contains("RP2040")
                             || desc.contains("Adafruit") || vid == 0x2E8A) {
                         target = p;
@@ -353,26 +432,20 @@ public class SerialService {
                 }
 
                 if (target != null) {
-                    DebugLogger.log("[AutoConnect] Match: " + target.getSystemPortName() + " — calling connect()");
+                    DebugLogger.log("[AutoConnect] Match: " + target.getSystemPortName());
                     connect(target);
                 } else {
-                    DebugLogger.log("[AutoConnect] No match — will retry in " + POLL_INTERVAL_SECONDS + "s");
+                    DebugLogger.log("[AutoConnect] No match — retry in " + POLL_INTERVAL_SECONDS + "s");
                 }
 
             } catch (Throwable t) {
-                // Log and swallow so the scheduler stays alive for the next cycle.
                 DebugLogger.log("[AutoConnect] EXCEPTION (scheduler kept alive): "
                         + t.getClass().getSimpleName() + ": " + t.getMessage());
-                t.printStackTrace();
             }
-
         }, initialDelay, POLL_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
-    /** Compatibilité — équivalent à startAutoConnect(false). */
-    public void startAutoConnect() {
-        startAutoConnect(false);
-    }
+    public void startAutoConnect() { startAutoConnect(false); }
 
     public void stopAutoConnect() {
         stopWatchdog();

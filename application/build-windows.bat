@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 SETLOCAL EnableDelayedExpansion
 cd /d "%~dp0"
 
@@ -13,8 +13,8 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-if not exist "target\axionpad-1.0.1.jar" (
-    echo ERROR: target\axionpad-1.0.1.jar not found
+if not exist "target\axionpad-2.0.0.jar" (
+    echo ERROR: target\axionpad-2.0.0.jar not found
     pause
     exit /b 1
 )
@@ -25,7 +25,7 @@ if not exist "target\lib" (
 )
 
 echo Step 2 - Copy main JAR into target\lib
-copy /y "target\axionpad-1.0.1.jar" "target\lib\axionpad-1.0.1.jar" >nul
+copy /y "target\axionpad-2.0.0.jar" "target\lib\axionpad-2.0.0.jar" >nul
 
 echo Step 3 - Build JavaFX module directory
 if exist "target\javafx-mods" rmdir /s /q "target\javafx-mods"
@@ -80,11 +80,11 @@ if not exist "dist" mkdir "dist"
 jpackage ^
  --type msi ^
  --name AxionPad ^
- --app-version 1.0.1 ^
+ --app-version 2.0.0 ^
  --dest dist ^
  --runtime-image target\custom-jre ^
  --input target\lib ^
- --main-jar axionpad-1.0.1.jar ^
+ --main-jar axionpad-2.0.0.jar ^
  --main-class com.axionpad.Main ^
  --icon icon.ico ^
  --win-upgrade-uuid 7f33663a-8664-4e2a-b733-4f9687e0259b ^
@@ -96,7 +96,8 @@ if %ERRORLEVEL% neq 0 (
     echo ERROR: jpackage failed
     echo Make sure WiX Toolset is installed: winget install WixToolset.WiXToolset
 ) else (
-    echo SUCCESS: dist\AxionPad-1.0.1.msi is ready
+    echo SUCCESS: dist\AxionPad-2.0.0.msi is ready
 )
 
 pause
+

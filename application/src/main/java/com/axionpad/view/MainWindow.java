@@ -2,6 +2,7 @@ package com.axionpad.view;
 
 import com.axionpad.controller.*;
 import com.axionpad.model.AppSettings;
+import com.axionpad.model.DeviceModel;
 import com.axionpad.model.PadConfig;
 import com.axionpad.service.ConfigService;
 import com.axionpad.service.I18n;
@@ -47,6 +48,7 @@ public class MainWindow {
     private SoundbarController soundbarController;
     private ExportController   exportController;
     private SettingsController settingsController;
+    private RgbController      rgbController;
 
     // UI
     private StackPane sceneRoot;
@@ -56,10 +58,11 @@ public class MainWindow {
     private Circle    connDot;
     private Label     connLabel;
     private Button    connButton;
+    private Label     modelLabel;   // affiche le modèle détecté dans la titlebar
     private VBox      sidebar;
 
     // Cache pages
-    private Pane keysPage, slidersPage, soundbarPage, exportPage, settingsPage;
+    private Pane keysPage, slidersPage, soundbarPage, exportPage, settingsPage, rgbPage;
 
     // Toast
     private StackPane toastContainer;
@@ -160,7 +163,6 @@ public class MainWindow {
     private void initControllers() {
         keysController    = new KeysController(configService) {
             @Override protected void onSaveSuccess() {
-                // Recharge la page (toujours reconstruite depuis le config à jour)
                 showPage("keys");
                 showToast(I18n.t("save.ok"));
             }
@@ -171,6 +173,7 @@ public class MainWindow {
         exportController   = new ExportController(configService, stage);
         settingsController = new SettingsController(settingsService);
         settingsController.setOnApply(this::onSettingsApplied);
+        rgbController      = new RgbController(configService);
     }
 
     // ── Settings apply ────────────────────────────────────────────────
@@ -180,7 +183,7 @@ public class MainWindow {
         applyFontSize();
         root.setBottom(buildBottomNav());
         keysPage = null; slidersPage = null; soundbarPage = null;
-        settingsPage = null;
+        settingsPage = null; rgbPage = null;
         initControllers();
         soundbarPage = soundbarController.buildView();
         showPage(currentPage);
@@ -245,10 +248,11 @@ public class MainWindow {
         nav.setAlignment(Pos.CENTER);
 
         String[][] items = {
-            {"⌨", I18n.t("nav.keys"),      "keys"},
-            {"🎚", I18n.t("nav.sliders"),  "sliders"},
-            {"🎛", "Presets",              "presets"},
-            {"⚙",  I18n.t("nav.settings"), "settings"},
+            {"⌨",  I18n.t("nav.keys"),      "keys"},
+            {"🎚", I18n.t("nav.sliders"),   "sliders"},
+            {"🎛", "Presets",               "presets"},
+            {"💡", "RGB",                   "rgb"},
+            {"⚙",  I18n.t("nav.settings"),  "settings"},
         };
         for (String[] item : items) {
             nav.getChildren().add(buildNavButton(item[0], item[1], item[2]));
@@ -445,9 +449,17 @@ public class MainWindow {
             logoBadge = new StackPane(fb);
         }
 
-        // Centered title
+        // Centered title + model badge
         Label name = new Label("AxionPad Configurator");
         name.getStyleClass().add("title-name");
+        modelLabel = new Label();
+        modelLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.38); -fx-font-size: 10px;"
+            + " -fx-padding: 2 6 2 6; -fx-background-radius: 6;"
+            + " -fx-background-color: rgba(124,58,237,0.18);");
+        modelLabel.setVisible(false);
+        HBox titleGroup = new HBox(8, name, modelLabel);
+        titleGroup.setAlignment(Pos.CENTER);
+
         Region spacerL = new Region(); HBox.setHgrow(spacerL, Priority.ALWAYS);
         Region spacerR = new Region(); HBox.setHgrow(spacerR, Priority.ALWAYS);
 
@@ -463,7 +475,7 @@ public class MainWindow {
         connButton.setGraphic(btnContent);
         connButton.setOnAction(e -> handleConnect());
 
-        bar.getChildren().addAll(logoBadge, spacerL, name, spacerR, connButton);
+        bar.getChildren().addAll(logoBadge, spacerL, titleGroup, spacerR, connButton);
         return bar;
     }
 
@@ -718,6 +730,7 @@ public class MainWindow {
             case "export"   -> getExportPage();
             case "settings" -> getSettingsPage();
             case "presets"  -> getPresetsPage();
+            case "rgb"      -> getRgbPage();
             default         -> getKeysPage();
         };
         contentArea.getChildren().add(page);
@@ -758,6 +771,10 @@ public class MainWindow {
     }
     private Pane getExportPage()   { return exportController.buildView(); }
     private Pane getSettingsPage() { return wrapInScroll(settingsController.buildView()); }
+    private Pane getRgbPage()      {
+        if (rgbPage == null) rgbPage = wrapInScroll(rgbController.buildView());
+        return rgbPage;
+    }
 
     // ── SERIAL ───────────────────────────────────────────────────────
 
@@ -793,10 +810,10 @@ public class MainWindow {
                 connLabel.setText("Axion Pad connecté — Déconnecter");
             } else {
                 connLabel.setText("Connecter le pad");
+                modelLabel.setVisible(false);
             }
         });
 
-        // Watchdog recovery: red LED while searching, clears on reconnect
         serialService.setOnSearching(searching -> {
             connDot.getStyleClass().removeAll("dot-on", "dot-err");
             connButton.getStyleClass().removeAll("conn-on", "conn-err");
@@ -807,11 +824,38 @@ public class MainWindow {
             }
         });
 
+        // Modèle détecté → badge titlebar + mise à jour des pages
+        serialService.setOnModelDetected(model -> {
+            if (model != DeviceModel.UNKNOWN) {
+                modelLabel.setText(model.displayName);
+                modelLabel.setVisible(true);
+            }
+            configService.initSlidersForModel(model);
+            // Invalider les pages qui dépendent du modèle
+            keysPage = null; slidersPage = null; rgbPage = null;
+            if ("keys".equals(currentPage))    showPage("keys");
+            else if ("sliders".equals(currentPage)) showPage("sliders");
+            else if ("rgb".equals(currentPage)) showPage("rgb");
+        });
+
+        // Callback brut — contrôle volume sur le thread série (sans FX overhead)
+        serialService.setOnRawSliderValues(vals -> {
+            try {
+                // Snapshot défensif : évite ConcurrentModificationException lors de
+                // l'extension de la liste au moment de la détection du modèle.
+                java.util.List<com.axionpad.model.SliderConfig> sliders =
+                    new java.util.ArrayList<>(configService.getConfig().getSliders());
+                for (com.axionpad.model.SliderConfig s : sliders) {
+                    if (s.getIndex() < vals.length) s.setCurrentValue(vals[s.getIndex()]);
+                }
+                volumeService.applySliderValues(vals, sliders);
+            } catch (Exception ignored) {}
+        });
+
+        // Callback UI — uniquement quand visible, throttlé à 20 fps
         serialService.setOnSliderValues(vals -> {
             soundbarController.updateSliderValues(vals);
             slidersController.updateSliderValues(vals);
-            configService.getConfig().getSliders().forEach(s -> s.setCurrentValue(vals[s.getIndex()]));
-            volumeService.applySliderValues(vals, configService.getConfig().getSliders());
         });
 
         serialService.setOnLogMessage(msg -> soundbarController.appendLog(msg));

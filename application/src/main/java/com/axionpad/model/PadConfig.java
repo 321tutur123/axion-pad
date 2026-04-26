@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Configuration complète du pad : layers dynamiques + 4 sliders + presets.
+ * Configuration complète du pad : layers dynamiques + sliders + RGB + presets.
  */
 public class PadConfig {
 
@@ -36,7 +36,11 @@ public class PadConfig {
         public void setName(String name) { this.name = name; }
     }
 
-    /** Un layer (calque) : nom + 12 touches configurables. */
+    /**
+     * Un layer : nom + jusqu'à 16 touches configurables.
+     * Rétrocompatible : les configs existantes à 12 touches sont étendues à 16
+     * lors du premier accès.
+     */
     public static class Layer {
         private String name;
         private List<KeyConfig> keys;
@@ -46,22 +50,24 @@ public class PadConfig {
         public Layer(String name) {
             this.name = name;
             this.keys = new ArrayList<>();
-            for (int i = 0; i < 12; i++) this.keys.add(new KeyConfig(i));
+            for (int i = 0; i < 16; i++) this.keys.add(new KeyConfig(i));
         }
 
         public String getName() { return name != null ? name : "Layer"; }
         public void setName(String n) { this.name = n; }
 
         public List<KeyConfig> getKeys() {
-            if (keys == null || keys.size() < 12) {
-                keys = new ArrayList<>();
-                for (int i = 0; i < 12; i++) keys.add(new KeyConfig(i));
-            }
+            if (keys == null) keys = new ArrayList<>();
+            while (keys.size() < 16) keys.add(new KeyConfig(keys.size()));
             return keys;
         }
         public void setKeys(List<KeyConfig> k) { this.keys = k; }
 
-        public KeyConfig getKey(int i) { return getKeys().get(i); }
+        public KeyConfig getKey(int i) {
+            List<KeyConfig> ks = getKeys();
+            if (i < 0 || i >= ks.size()) return new KeyConfig(i);
+            return ks.get(i);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -82,9 +88,21 @@ public class PadConfig {
     private List<SliderConfig> sliders;
     private List<UserPreset>   userPresets = new ArrayList<>();
 
+    /** Configuration RGB NeoPixel (persistée). */
+    private RgbConfig rgb = new RgbConfig();
+
     public PadConfig() {
         sliders = new ArrayList<>();
         for (int i = 0; i < 4; i++) sliders.add(new SliderConfig(i));
+    }
+
+    /**
+     * Étend la liste des sliders à {@code n} entrées si nécessaire.
+     * Appelé lors de la détection d'un modèle XL (6 pots) ou MINI (0 pot).
+     */
+    public void ensureSliderCount(int n) {
+        if (sliders == null) sliders = new ArrayList<>();
+        while (sliders.size() < n) sliders.add(new SliderConfig(sliders.size()));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -261,8 +279,17 @@ public class PadConfig {
     public List<KeyConfig> getKeys() { return getLayer(0).getKeys(); }
     public KeyConfig getKey(int i)   { return getLayer(0).getKey(i); }
 
-    public List<SliderConfig> getSliders() { return sliders; }
-    public SliderConfig getSlider(int i)   { return sliders.get(i); }
+    public List<SliderConfig> getSliders() {
+        if (sliders == null) sliders = new ArrayList<>();
+        return sliders;
+    }
+    public SliderConfig getSlider(int i) { return sliders.get(i); }
+
+    public RgbConfig getRgb() {
+        if (rgb == null) rgb = new RgbConfig();
+        return rgb;
+    }
+    public void setRgb(RgbConfig r) { this.rgb = r; }
 
     public List<UserPreset> getUserPresets() {
         if (userPresets == null) userPresets = new ArrayList<>();

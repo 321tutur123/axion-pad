@@ -97,8 +97,8 @@ public class WindowsVolumeService {
     // ── API publique ──────────────────────────────────────────────────────
 
     /**
-     * Appelé depuis le thread JavaFX à chaque paquet série (~100 Hz).
-     * Throttlé à 20 Hz pour ne pas surcharger COM.
+     * Appelé depuis le thread série (onRawSliderValues) à chaque paquet (~100 Hz).
+     * Thread-safe : soumet sur comThread. Throttlé à 20 Hz pour ne pas surcharger COM.
      */
     public void applySliderValues(int[] raw, List<SliderConfig> configs) {
         long now = System.nanoTime();
