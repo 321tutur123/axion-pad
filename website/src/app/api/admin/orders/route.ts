@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { isAuthorized } from "@/lib/admin-auth";
 
 export const runtime = "edge";
 
-function authorized(request: Request): boolean {
-  const key = request.headers.get("x-admin-key");
-  const expected = process.env.ADMIN_KEY;
-  if (!expected) return false;
-  return key === expected;
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -75,10 +75,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Panier vide" }, { status: 400 });
   }
 
-  const orderId  = `AXN-${Date.now().toString(36).toUpperCase()}`;
-  const origin   = request.headers.get("origin")
-    ?? process.env.NEXT_PUBLIC_SITE_URL
-    ?? "https://axionpad.com";
+  const orderId = `AXN-${Date.now().toString(36).toUpperCase()}`;
+  const origin  = process.env.NEXT_PUBLIC_SITE_URL ?? "https://axionpad.com";
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

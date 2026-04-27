@@ -31,7 +31,16 @@
       "Bash(mvn -q clean compile)",
       "Bash(echo \"Exit: $?\")",
       "Bash(jpackage --version)",
-      "Bash(jlink --version)"
+      "Bash(jlink --version)",
+      "Bash(gltf-transform *)",
+      "Bash(gh run *)",
+      "Bash(mkdir -p pcb components exports)",
+      "Bash(mv \"3dpea.com_OBJ_PCB_AXION_V1_PCB_2.step\" \"pcb/axion_v1_pcb.step\")",
+      "Bash(mv \"OBJ_PCB_AXION_V1_PCB_2.stp\" \"pcb/axion_v1_pcb.stp\")",
+      "Bash(mv \"Gerber avec texte.zip\" \"pcb/gerber.zip\")",
+      "Bash(mv \"V2.zip\" \"pcb/v2.zip\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

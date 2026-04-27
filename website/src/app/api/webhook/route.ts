@@ -55,15 +55,16 @@ export async function POST(request: Request) {
   try {
     const { env } = getRequestContext();
     await env.DB.prepare(`
-      INSERT OR REPLACE INTO orders (
-        id, order_number, status, payment_status,
+      INSERT OR IGNORE INTO orders (
+        id, stripe_event_id, order_number, status, payment_status,
         customer_email, customer_name,
         amount_total, currency,
         shipping_name, shipping_address,
         items, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       session.id,
+      event.id,
       orderNumber,
       "confirmed",
       session.payment_status,
@@ -77,8 +78,7 @@ export async function POST(request: Request) {
       session.created,
     ).run();
   } catch (dbErr) {
-    // Log but still return 200 — order data is safe in Stripe Dashboard.
-    // Stripe would retry on 5xx, causing duplicate inserts.
+    // Return 200 so Stripe doesn't keep retrying — order is safe in Stripe Dashboard.
     console.error("D1 insert failed:", dbErr);
   }
 

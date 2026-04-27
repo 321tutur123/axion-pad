@@ -48,7 +48,6 @@ function fmtDate(ts: number) {
   });
 }
 
-const SESSION_KEY = "axionpad_admin_key";
 
 /* ── Status badge ───────────────────────────────────────────────────────── */
 
@@ -171,12 +170,11 @@ function escHtml(str: string | undefined): string {
 
 interface ModalProps {
   order: Order;
-  adminKey: string;
   onUpdate: (id: string, patch: Partial<Order>) => void;
   onClose: () => void;
 }
 
-function OrderModal({ order, adminKey, onUpdate, onClose }: ModalProps) {
+function OrderModal({ order, onUpdate, onClose }: ModalProps) {
   const address = safeJSON<ShippingAddress>(order.shipping_address, {});
   const items   = safeJSON<OrderItem[]>(order.items, []);
   const [tracking, setTracking] = useState(order.tracking_number ?? "");
@@ -188,7 +186,7 @@ function OrderModal({ order, adminKey, onUpdate, onClose }: ModalProps) {
     try {
       await fetch(`/api/admin/orders/${order.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "shipped", tracking_number: tracking }),
       });
       onUpdate(order.id, { status: "shipped", tracking_number: tracking });
@@ -324,47 +322,44 @@ function OrderModal({ order, adminKey, onUpdate, onClose }: ModalProps) {
 /* ── Main page ──────────────────────────────────────────────────────────── */
 
 export default function AdminOrdersPage() {
-  const [adminKey,   setAdminKey]   = useState<string | null>(null);
-  const [keyInput,   setKeyInput]   = useState("");
-  const [authError,  setAuthError]  = useState("");
+  const [authState,   setAuthState]   = useState<"loading" | "logged-in" | "logged-out">("loading");
+  const [keyInput,    setKeyInput]    = useState("");
+  const [authError,   setAuthError]   = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [orders,       setOrders]       = useState<Order[]>([]);
+  const [orders,        setOrders]        = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
-  const [selected,     setSelected]     = useState<Order | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [search,       setSearch]       = useState("");
+  const [selected,      setSelected]      = useState<Order | null>(null);
+  const [statusFilter,  setStatusFilter]  = useState<string>("all");
+  const [search,        setSearch]        = useState("");
 
-  useEffect(() => {
-    const stored = sessionStorage.getItem(SESSION_KEY);
-    if (stored) setAdminKey(stored);
-  }, []);
-
-  const fetchOrders = useCallback(async (key: string) => {
+  const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      const res = await fetch("/api/admin/orders", { headers: { "x-admin-key": key } });
-      if (res.status === 401) { sessionStorage.removeItem(SESSION_KEY); setAdminKey(null); return; }
+      const res = await fetch("/api/admin/orders");
+      if (res.status === 401) { setAuthState("logged-out"); return; }
       const data = await res.json() as { orders?: Order[] };
       setOrders(data.orders ?? []);
+      setAuthState("logged-in");
     } finally {
       setLoadingOrders(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (adminKey) fetchOrders(adminKey);
-  }, [adminKey, fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyInput.trim()) return;
     setAuthLoading(true); setAuthError("");
     try {
-      const res = await fetch("/api/admin/orders", { headers: { "x-admin-key": keyInput.trim() } });
-      if (res.status === 401) { setAuthError("Mot de passe incorrect."); return; }
-      sessionStorage.setItem(SESSION_KEY, keyInput.trim());
-      setAdminKey(keyInput.trim());
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: keyInput }),
+      });
+      if (!res.ok) { setAuthError("Mot de passe incorrect."); return; }
+      await fetchOrders();
     } catch {
       setAuthError("Erreur réseau.");
     } finally {
@@ -377,8 +372,17 @@ export default function AdminOrdersPage() {
     setSelected(prev => prev?.id === id ? { ...prev, ...patch } : prev);
   };
 
+  /* ── Loading screen ───────────────────────────────────────────────────── */
+  if (authState === "loading") {
+    return (
+      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      </main>
+    );
+  }
+
   /* ── Login screen ─────────────────────────────────────────────────────── */
-  if (!adminKey) {
+  if (authState === "logged-out") {
     return (
       <main className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
         <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4">
@@ -440,7 +444,11 @@ export default function AdminOrdersPage() {
               <p className="text-zinc-500 text-sm mt-0.5">{orders.length} au total</p>
             </div>
             <button
-              onClick={() => { sessionStorage.removeItem(SESSION_KEY); setAdminKey(null); setOrders([]); }}
+              onClick={async () => {
+                await fetch("/api/admin/login", { method: "DELETE" });
+                setOrders([]);
+                setAuthState("logged-out");
+              }}
               className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
             >
               Déconnexion
@@ -471,7 +479,7 @@ export default function AdminOrdersPage() {
               className="flex-1 min-w-48 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-violet-500 placeholder-zinc-600"
             />
             <button
-              onClick={() => adminKey && fetchOrders(adminKey)}
+              onClick={() => fetchOrders()}
               className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm transition-colors"
               title="Rafraîchir"
             >
@@ -525,10 +533,9 @@ export default function AdminOrdersPage() {
         </div>
       </main>
 
-      {selected && adminKey && (
+      {selected && (
         <OrderModal
           order={selected}
-          adminKey={adminKey}
           onUpdate={handleOrderUpdate}
           onClose={() => setSelected(null)}
         />

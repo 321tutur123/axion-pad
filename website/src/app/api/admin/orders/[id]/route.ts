@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { isAuthorized } from "@/lib/admin-auth";
 
 export const runtime = "edge";
 
 const VALID_STATUSES = ["confirmed", "shipped", "cancelled"] as const;
 type OrderStatus = typeof VALID_STATUSES[number];
 
-function authorized(request: Request): boolean {
-  const key = request.headers.get("x-admin-key");
-  const expected = process.env.ADMIN_KEY;
-  if (!expected) return false;
-  return key === expected;
-}
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!authorized(request)) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
