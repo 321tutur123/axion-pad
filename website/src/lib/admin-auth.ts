@@ -1,21 +1,28 @@
 const SESSION_MAX_AGE = 8 * 60 * 60; // 8 hours in seconds
 
-function b64url(buf: ArrayBuffer | Uint8Array): string {
-  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+// TextEncoder.encode() returns Uint8Array whose .buffer is typed as ArrayBufferLike
+// (includes SharedArrayBuffer) in strict lib.dom.d.ts. Web Crypto expects plain ArrayBuffer,
+// so we extract it with an explicit cast — safe because TextEncoder never uses SharedArrayBuffer.
+function enc(str: string): ArrayBuffer {
+  return new TextEncoder().encode(str).buffer as ArrayBuffer;
+}
+
+function b64url(buf: ArrayBuffer): string {
   let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
+  for (const b of new Uint8Array(buf)) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function b64urlDecode(str: string): Uint8Array {
+function b64urlDecode(str: string): ArrayBuffer {
   const s = str.replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(s + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
+  return Uint8Array.from(atob(s + "=".repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0))
+    .buffer as ArrayBuffer;
 }
 
 async function importKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(secret),
+    enc(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
@@ -24,12 +31,10 @@ async function importKey(secret: string): Promise<CryptoKey> {
 
 export async function createSessionToken(secret: string): Promise<string> {
   const payload = b64url(
-    new TextEncoder().encode(
-      JSON.stringify({ exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE }),
-    ),
+    enc(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE })),
   );
   const key = await importKey(secret);
-  const sig = b64url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
+  const sig = b64url(await crypto.subtle.sign("HMAC", key, enc(payload)));
   return `${payload}.${sig}`;
 }
 
@@ -41,7 +46,7 @@ export async function verifySessionToken(token: string, secret: string): Promise
   try {
     const key = await importKey(secret);
     const ok = await crypto.subtle.verify(
-      "HMAC", key, b64urlDecode(sig), new TextEncoder().encode(payload),
+      "HMAC", key, b64urlDecode(sig), enc(payload),
     );
     if (!ok) return false;
     const { exp } = JSON.parse(
