@@ -1,8 +1,9 @@
 const SESSION_MAX_AGE = 8 * 60 * 60; // 8 hours in seconds
 
-function b64url(buf: ArrayBuffer): string {
+function b64url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let binary = "";
-  for (const b of new Uint8Array(buf)) binary += String.fromCharCode(b);
+  for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
