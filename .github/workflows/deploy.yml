@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: website/package-lock.json
 
@@ -31,8 +31,9 @@ jobs:
 
       - name: Build
         working-directory: website
-        run: npx @cloudflare/next-on-pages
+        run: npm run pages:build
         env:
+          NODE_VERSION: "22"
           NEXT_PUBLIC_SITE_URL: https://axionpad.fr
 
       - name: Deploy to Cloudflare Pages
