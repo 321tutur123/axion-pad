@@ -22,10 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
 
       - name: Install dependencies
         working-directory: website
-        run: npm install
+        run: npm ci
 
       - name: Build
         working-directory: website
@@ -34,11 +36,9 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://axionpad.fr
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: axion-pad
-          directory: website/.vercel/output/static
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
+          command: pages deploy .vercel/output/static --project-name=axion-pad --branch=main
+          workingDirectory: website
