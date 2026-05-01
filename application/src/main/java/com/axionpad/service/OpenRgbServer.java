@@ -1,7 +1,7 @@
 package com.axionpad.service;
 
 import com.axionpad.model.RgbConfig;
-import com.google.gson.Gson;
+import com.google.gson.*;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 

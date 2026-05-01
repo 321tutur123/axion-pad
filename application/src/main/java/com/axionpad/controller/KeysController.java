@@ -854,7 +854,7 @@ public class KeysController {
         k.setLabel(labelField.getText().trim());
 
         Toggle sel = typeGroup.getSelectedToggle();
-        dbg("[saveKey] idx=" + selectedKey
+        DebugLogger.log("[KeysController] saveKey idx=" + selectedKey
             + " sel=" + (sel == null ? "NULL"
                        : sel == rbKeyboard ? "KEYBOARD"
                        : sel == rbApp      ? "APP"
@@ -890,13 +890,13 @@ public class KeysController {
         dbg("[saveKey] résultat T" + (selectedKey+1) + " label=" + k.getLabel() + " type=" + k.getActionType());
         try {
             cfg.save();
-            dbg("[saveKey] cfg.save() OK");
+            DebugLogger.log("[KeysController] Configuration saved successfully");
             closeDetail();
             dbg("[saveKey] closeDetail() OK");
             onSaveSuccess();
             dbg("[saveKey] onSaveSuccess() OK");
         } catch (Throwable t) {
-            dbg("[saveKey] EXCEPTION: " + t.getClass().getName() + " — " + t.getMessage());
+            DebugLogger.log("[KeysController] Save exception: " + t.getClass().getName() + " - " + t.getMessage());
             DebugLogger.log("[KeysController] saveKey failure", t);
         }
     }
