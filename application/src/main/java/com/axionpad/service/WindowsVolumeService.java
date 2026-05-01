@@ -136,7 +136,8 @@ public class WindowsVolumeService {
                 case "master" -> toggleEndpointMute(0 /*eRender*/);
                 case "mic"    -> toggleEndpointMute(1 /*eCapture*/);
                 case "system" -> toggleSystemSoundsMute();
-                default       -> toggleProcessMute(target.trim());
+                case "discord"-> toggleProcessMute("discord.exe");
+                default       -> toggleProcessMute(target.trim() + ".exe");
             }
         } catch (Exception e) {
             logErrorThrottled("[VOL] Echec toggleMute pour cible '" + target + "'", e);

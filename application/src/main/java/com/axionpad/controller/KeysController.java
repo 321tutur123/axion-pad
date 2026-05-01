@@ -712,8 +712,7 @@ public class KeysController {
         medLbl.getStyleClass().add("form-label");
         mediaKeyCombo = new ComboBox<>();
         mediaKeyCombo.getItems().addAll(
-                "MUTE", "VOLUME_INCREMENT", "VOLUME_DECREMENT",
-                "PLAY_PAUSE", "NEXT_TRACK", "PREVIOUS_TRACK", "STOP");
+                "MUTE", "PLAY_PAUSE", "NEXT_TRACK", "PREVIOUS_TRACK", "STOP");
         mediaKeyCombo.setValue("MUTE");
         mediaKeyCombo.setMaxWidth(Double.MAX_VALUE);
 

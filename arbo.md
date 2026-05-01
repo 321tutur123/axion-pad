@@ -11,6 +11,25 @@
 | `README.md` | Documentation principale : présentation du produit, versions (Mini/Standard/XL), stack technique, instructions de build |
 | `.gitignore` | Fichiers et dossiers exclus du suivi Git |
 | `RECAP_PROJET.txt` | Résumé global du projet |
+
+## Maintenance updates for version 2.0.2:
+
+### Key Simulation Fix (KeyHookService.java)
+- Replaced Java Robot key simulation with native Windows SendInput API
+- More reliable keypress simulation on Windows
+- Fixed issue where physical key presses weren't triggering actions
+
+### Mute Function Bug (WindowsVolumeService.java)
+- Added explicit .exe suffix handling for process targets
+- Added special case for Discord which needs full executable name
+- Improved mute toggle reliability
+
+### Media UI Cleanup (KeysController.java)
+- Removed "VOLUME_INCREMENT" and "VOLUME_DECREMENT" options
+- Volume control should be handled via sliders, not media keys
+
+### Build Updates
+- Version incremented to 2.0.2 in pom.xml
 | `arbo.md` | Ce fichier — cartographie complète de l'arborescence |
 | `axion-pad.*.log` | Log d'exécution de l'application (généré automatiquement) |
 | `.aider.chat.history.md` | Historique de conversations avec l'IA Aider |

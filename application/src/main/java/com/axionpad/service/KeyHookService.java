@@ -155,7 +155,6 @@ public class KeyHookService {
     }
 
     private void executeKeyboard(KeyConfig kc) {
-        if (robot == null) return;
         List<Integer> vks = new ArrayList<>();
         for (String mod : kc.getModifiers()) {
             Integer vk = MOD_VK.get(mod);
@@ -165,10 +164,24 @@ public class KeyHookService {
         if (keyVk != null) vks.add(keyVk);
         if (vks.isEmpty()) return;
 
-        for (int vk : vks) robot.keyPress(vk);
-        List<Integer> rev = new ArrayList<>(vks);
-        Collections.reverse(rev);
-        for (int vk : rev) robot.keyRelease(vk);
+        // Use SendInput for more reliable key simulation on Windows
+        WinUser.INPUT[] inputs = new WinUser.INPUT[vks.size() * 2];
+        for (int i = 0; i < vks.size(); i++) {
+            // Key down
+            inputs[i*2] = new WinUser.INPUT();
+            inputs[i*2].type = new DWORD(WinUser.INPUT.INPUT_KEYBOARD);
+            inputs[i*2].input.setType("ki");
+            inputs[i*2].input.ki.wVk = new WORD(vks.get(i));
+            
+            // Key up
+            inputs[i*2+1] = new WinUser.INPUT();
+            inputs[i*2+1].type = new DWORD(WinUser.INPUT.INPUT_KEYBOARD);
+            inputs[i*2+1].input.setType("ki");
+            inputs[i*2+1].input.ki.wVk = new WORD(vks.get(i));
+            inputs[i*2+1].input.ki.dwFlags = new DWORD(WinUser.KEYBDINPUT.KEYEVENTF_KEYUP);
+        }
+        
+        User32.INSTANCE.SendInput(new DWORD(inputs.length), inputs, inputs[0].size());
     }
 
     private void executeApp(KeyConfig kc) {
