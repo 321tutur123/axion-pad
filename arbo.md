@@ -12,24 +12,41 @@
 | `.gitignore` | Fichiers et dossiers exclus du suivi Git |
 | `RECAP_PROJET.txt` | Résumé global du projet |
 
-## Maintenance updates for version 2.0.2:
+## Maintenance updates for version 2.0.3:
 
-### Key Simulation Fix (KeyHookService.java)
-- Replaced Java Robot key simulation with native Windows SendInput API
-- More reliable keypress simulation on Windows
-- Fixed issue where physical key presses weren't triggering actions
+### Dynamic Slider Support (DeviceModel.java, SliderConfig.java)
+- Added full support for 6 sliders on XL model (GP0/A4 and GP1/A5 pins)
+- Safe pin label access with bounds checking
+- Improved Python/YAML export formatting with validation
 
-### Mute Function Bug (WindowsVolumeService.java)
-- Added explicit .exe suffix handling for process targets
-- Added special case for Discord which needs full executable name
-- Improved mute toggle reliability
+### Audio Service Improvements (WindowsVolumeService.java)
+- Enhanced process mute handling with .exe suffix enforcement
+- Added special Discord mute case
+- Throttled error logging to prevent spam
+- Unified logging through DebugLogger
 
-### Media UI Cleanup (KeysController.java)
-- Removed "VOLUME_INCREMENT" and "VOLUME_DECREMENT" options
-- Volume control should be handled via sliders, not media keys
+### Logging Refactor (KeysController.java, Main.java)
+- Removed all debug() calls in favor of DebugLogger
+- Added proper error handling around serial operations  
+- Centralized logging configuration in DebugLogger
+- Removed hardcoded temp file paths
 
-### Build Updates
-- Version incremented to 2.0.2 in pom.xml
+### JSON Handling (OpenRgbServer.java)
+- Added robust JSON validation and error handling
+- Proper type checking for all input fields
+- Input sanitization for RGB values
+- Standardized error responses
+
+### Build System (build-windows.bat, pom.xml)
+- Version bumped to 2.0.3
+- Fixed BOM encoding issues in build script
+- Cleaned up debug artifacts
+- Improved build reliability
+
+### Documentation
+- Updated all code documentation
+- Standardized logging messages across services
+- Added architecture notes for audio and RGB services
 | `arbo.md` | Ce fichier — cartographie complète de l'arborescence |
 | `axion-pad.*.log` | Log d'exécution de l'application (généré automatiquement) |
 | `.aider.chat.history.md` | Historique de conversations avec l'IA Aider |
