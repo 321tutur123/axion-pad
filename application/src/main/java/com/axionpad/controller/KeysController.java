@@ -887,14 +887,14 @@ public class KeysController {
             k.setAhkScriptPath(ahkScriptField.getText().trim());
         }
 
-        dbg("[saveKey] résultat T" + (selectedKey+1) + " label=" + k.getLabel() + " type=" + k.getActionType());
+        DebugLogger.log("[KeysController] Key " + (selectedKey+1) + " updated - label=" + k.getLabel() + " type=" + k.getActionType());
         try {
             cfg.save();
             DebugLogger.log("[KeysController] Configuration saved successfully");
             closeDetail();
-            dbg("[saveKey] closeDetail() OK");
+            DebugLogger.log("[KeysController] Detail panel closed successfully");
             onSaveSuccess();
-            dbg("[saveKey] onSaveSuccess() OK");
+            DebugLogger.log("[KeysController] Saved successfully");
         } catch (Throwable t) {
             DebugLogger.log("[KeysController] Save exception: " + t.getClass().getName() + " - " + t.getMessage());
             DebugLogger.log("[KeysController] saveKey failure", t);
