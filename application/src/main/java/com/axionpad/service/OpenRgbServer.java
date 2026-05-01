@@ -1,6 +1,9 @@
 package com.axionpad.service;
 
 import com.axionpad.model.RgbConfig;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 import java.io.*;
 import java.net.*;
@@ -20,7 +23,9 @@ import java.util.concurrent.*;
 public class OpenRgbServer {
 
     public  static final int PORT = 7742;
+    private static final int MAX_BODY_BYTES = 16_384;
     private static OpenRgbServer instance;
+    private static final Gson GSON = new Gson();
 
     private ServerSocket     serverSocket;
     private ExecutorService  executor;
@@ -78,32 +83,56 @@ public class OpenRgbServer {
              OutputStream out = client.getOutputStream()) {
 
             String requestLine = in.readLine();
-            if (requestLine == null || requestLine.isBlank()) return;
+            if (requestLine == null || requestLine.isBlank()) {
+                writeJson(out, 400, errorJson("bad_request", "Request line is missing"));
+                return;
+            }
 
             String[] tokens = requestLine.split(" ");
-            if (tokens.length < 2) return;
+            if (tokens.length < 2) {
+                writeJson(out, 400, errorJson("bad_request", "Malformed request line"));
+                return;
+            }
             String method = tokens[0];
             String path   = tokens[1].split("\\?")[0];  // strip query string
 
             int contentLength = 0;
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
-                if (line.toLowerCase().startsWith("content-length:"))
-                    contentLength = Integer.parseInt(line.split(":", 2)[1].trim());
+                if (line.toLowerCase().startsWith("content-length:")) {
+                    try {
+                        contentLength = Integer.parseInt(line.split(":", 2)[1].trim());
+                    } catch (NumberFormatException ignored) {
+                        writeJson(out, 400, errorJson("bad_request", "Invalid Content-Length"));
+                        return;
+                    }
+                }
             }
 
             String body = "";
             if (contentLength > 0 && ("POST".equals(method) || "PUT".equals(method))) {
-                char[] buf = new char[Math.min(contentLength, 4096)];
-                int read = in.read(buf, 0, buf.length);
-                if (read > 0) body = new String(buf, 0, read);
+                if (contentLength > MAX_BODY_BYTES) {
+                    writeJson(out, 413, errorJson("payload_too_large", "Body exceeds limit"));
+                    return;
+                }
+                char[] buf = new char[contentLength];
+                int offset = 0;
+                while (offset < contentLength) {
+                    int read = in.read(buf, offset, contentLength - offset);
+                    if (read < 0) break;
+                    offset += read;
+                }
+                body = new String(buf, 0, offset);
             }
 
-            String json = route(method, path, body);
-            writeHttp200(out, json);
+            HttpResponse response = route(method, path, body);
+            writeJson(out, response.status, response.body);
 
         } catch (Exception e) {
-            DebugLogger.log("[OpenRgbServer] Client error: " + e.getMessage());
+            DebugLogger.log("[OpenRgbServer] Client error", e);
+            try (OutputStream out = client.getOutputStream()) {
+                writeJson(out, 500, errorJson("server_error", "Unexpected server error"));
+            } catch (IOException ignored) {}
         } finally {
             try { client.close(); } catch (IOException ignored) {}
         }
@@ -111,16 +140,18 @@ public class OpenRgbServer {
 
     // ── Routing ──────────────────────────────────────────────
 
-    private String route(String method, String path, String body) {
+    private HttpResponse route(String method, String path, String body) {
         return switch (method + " " + path) {
-            case "GET /status"  -> statusJson();
-            case "GET /devices" -> devicesJson();
+            case "GET /status"  -> HttpResponse.ok(statusJson());
+            case "GET /devices" -> HttpResponse.ok(devicesJson());
             default -> {
                 if ("POST".equals(method) && path.matches("/device/\\d+/color"))
                     yield applyColor(body);
                 if ("POST".equals(method) && path.matches("/device/\\d+/effect"))
                     yield applyEffect(body);
-                yield "{\"error\":\"not_found\"}";
+                if (path.matches("/device/\\d+/(color|effect)"))
+                    yield HttpResponse.methodNotAllowed(errorJson("method_not_allowed", "Use POST"));
+                yield HttpResponse.notFound(errorJson("not_found", "Unknown endpoint"));
             }
         };
     }
@@ -138,72 +169,96 @@ public class OpenRgbServer {
                + "\"leds\":" + leds + "}]";
     }
 
-    private String applyColor(String json) {
+    private HttpResponse applyColor(String json) {
         try {
-            int r = extractInt(json, "r");
-            int g = extractInt(json, "g");
-            int b = extractInt(json, "b");
-            String effectStr = extractString(json, "effect", "STATIC");
+            JsonObject payload = parseJson(json);
+            int r = getInt(payload, "r", 0);
+            int g = getInt(payload, "g", 0);
+            int b = getInt(payload, "b", 0);
+            String effectStr = getString(payload, "effect", "STATIC");
             RgbConfig cfg = getOrCreateConfig();
-            cfg.setColor1(new int[]{r, g, b});
-            cfg.setEffect(RgbConfig.Effect.valueOf(effectStr));
+            cfg.setColor1(new int[]{clampByte(r), clampByte(g), clampByte(b)});
+            cfg.setEffect(parseEffect(effectStr));
             RgbService.getInstance().applyConfig();
-            return "{\"ok\":true}";
+            return HttpResponse.ok("{\"ok\":true}");
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest(errorJson("invalid_effect", e.getMessage()));
+        } catch (JsonParseException e) {
+            return HttpResponse.badRequest(errorJson("invalid_json", e.getMessage()));
         } catch (Exception e) {
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            DebugLogger.log("[OpenRgbServer] applyColor failed", e);
+            return HttpResponse.serverError(errorJson("server_error", e.getMessage()));
         }
     }
 
-    private String applyEffect(String json) {
+    private HttpResponse applyEffect(String json) {
         try {
-            String effectStr = extractString(json, "effect", "STATIC");
-            int r   = extractInt(json, "r");
-            int g   = extractInt(json, "g");
-            int b   = extractInt(json, "b");
-            int r2  = extractInt(json, "r2");
-            int g2  = extractInt(json, "g2");
-            int b2  = extractInt(json, "b2");
-            int spd = extractInt(json, "speed");
-            if (spd == 0) spd = 80;
-            int bri = extractInt(json, "brightness");
-            if (bri == 0) bri = 200;
+            JsonObject payload = parseJson(json);
+            String effectStr = getString(payload, "effect", "STATIC");
+            int r   = getInt(payload, "r", 0);
+            int g   = getInt(payload, "g", 0);
+            int b   = getInt(payload, "b", 0);
+            int r2  = getInt(payload, "r2", 0);
+            int g2  = getInt(payload, "g2", 0);
+            int b2  = getInt(payload, "b2", 0);
+            int spd = getInt(payload, "speed", 80);
+            int bri = getInt(payload, "brightness", 200);
 
             RgbService.getInstance().sendEffect(
-                RgbConfig.Effect.valueOf(effectStr),
-                new int[]{r, g, b},
-                new int[]{r2, g2, b2},
-                spd, bri);
-            return "{\"ok\":true}";
+                parseEffect(effectStr),
+                new int[]{clampByte(r), clampByte(g), clampByte(b)},
+                new int[]{clampByte(r2), clampByte(g2), clampByte(b2)},
+                clampByte(spd), clampByte(bri));
+            return HttpResponse.ok("{\"ok\":true}");
+        } catch (IllegalArgumentException e) {
+            return HttpResponse.badRequest(errorJson("invalid_effect", e.getMessage()));
+        } catch (JsonParseException e) {
+            return HttpResponse.badRequest(errorJson("invalid_json", e.getMessage()));
         } catch (Exception e) {
-            return "{\"error\":\"" + e.getMessage() + "\"}";
+            DebugLogger.log("[OpenRgbServer] applyEffect failed", e);
+            return HttpResponse.serverError(errorJson("server_error", e.getMessage()));
         }
     }
 
-    // ── JSON helpers (no external dependency) ────────────────
+    // ── JSON helpers ──────────────────────────────────────────
 
-    private int extractInt(String json, String key) {
-        int idx = json.indexOf("\"" + key + "\":");
-        if (idx < 0) return 0;
-        int start = idx + key.length() + 3;
-        // skip whitespace
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-        int end = start;
-        while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) end++;
-        if (start >= end) return 0;
-        try { return Integer.parseInt(json.substring(start, end)); } catch (NumberFormatException e) { return 0; }
+    private JsonObject parseJson(String body) {
+        if (body == null || body.isBlank()) {
+            throw new JsonParseException("Empty JSON body");
+        }
+        return GSON.fromJson(body, JsonObject.class);
     }
 
-    private String extractString(String json, String key, String def) {
-        int idx = json.indexOf("\"" + key + "\":\"");
-        if (idx < 0) return def;
-        int start = idx + key.length() + 4;
-        int end   = json.indexOf('"', start);
-        return (end < 0) ? def : json.substring(start, end);
+    private int getInt(JsonObject obj, String key, int def) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return def;
+        try { return obj.get(key).getAsInt(); } catch (Exception ignored) { return def; }
     }
 
-    private void writeHttp200(OutputStream out, String json) throws IOException {
+    private String getString(JsonObject obj, String key, String def) {
+        if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return def;
+        try { return obj.get(key).getAsString(); } catch (Exception ignored) { return def; }
+    }
+
+    private RgbConfig.Effect parseEffect(String raw) {
+        return RgbConfig.Effect.valueOf(raw.trim().toUpperCase());
+    }
+
+    private int clampByte(int v) {
+        return Math.max(0, Math.min(255, v));
+    }
+
+    private String errorJson(String code, String message) {
+        return "{\"error\":\"" + escapeJson(code) + "\",\"message\":\"" + escapeJson(message) + "\"}";
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private void writeJson(OutputStream out, int statusCode, String json) throws IOException {
         byte[] body = json.getBytes(StandardCharsets.UTF_8);
-        String header = "HTTP/1.1 200 OK\r\n"
+        String header = "HTTP/1.1 " + statusCode + " " + reasonPhrase(statusCode) + "\r\n"
             + "Content-Type: application/json\r\n"
             + "Content-Length: " + body.length + "\r\n"
             + "Access-Control-Allow-Origin: *\r\n"
@@ -214,8 +269,35 @@ public class OpenRgbServer {
         out.flush();
     }
 
+    private String reasonPhrase(int statusCode) {
+        return switch (statusCode) {
+            case 200 -> "OK";
+            case 400 -> "Bad Request";
+            case 404 -> "Not Found";
+            case 405 -> "Method Not Allowed";
+            case 413 -> "Payload Too Large";
+            default -> "Internal Server Error";
+        };
+    }
+
     private RgbConfig getOrCreateConfig() {
         RgbConfig cfg = RgbService.getInstance().getConfig();
         return (cfg != null) ? cfg : new RgbConfig();
+    }
+
+    private static final class HttpResponse {
+        final int status;
+        final String body;
+
+        private HttpResponse(int status, String body) {
+            this.status = status;
+            this.body = body;
+        }
+
+        static HttpResponse ok(String body) { return new HttpResponse(200, body); }
+        static HttpResponse badRequest(String body) { return new HttpResponse(400, body); }
+        static HttpResponse notFound(String body) { return new HttpResponse(404, body); }
+        static HttpResponse methodNotAllowed(String body) { return new HttpResponse(405, body); }
+        static HttpResponse serverError(String body) { return new HttpResponse(500, body); }
     }
 }
