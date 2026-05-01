@@ -6,7 +6,7 @@
 
     <groupId>com.axionpad</groupId>
     <artifactId>axionpad</artifactId>
-    <version>2.0.0</version>
+    <version>2.0.1</version>
     <packaging>jar</packaging>
 
     <name>Axion Pad Configurator</name>
@@ -44,7 +44,7 @@
         <dependency>
             <groupId>com.fazecast</groupId>
             <artifactId>jSerialComm</artifactId>
-            <version>2.11.0</version>
+            <version>${jserialcomm.version}</version>
         </dependency>
 
         <!-- JSON (sauvegarde config) -->
@@ -64,6 +64,13 @@
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
             <version>5.13.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

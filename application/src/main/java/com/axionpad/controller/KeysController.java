@@ -5,6 +5,7 @@ import com.axionpad.model.KeyConfig;
 import com.axionpad.model.KeyConfig.ActionType;
 import com.axionpad.model.PadConfig;
 import com.axionpad.service.ConfigService;
+import com.axionpad.service.DebugLogger;
 import com.axionpad.service.SerialService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -681,7 +682,7 @@ public class KeysController {
             }
             p.waitFor(15, TimeUnit.SECONDS);
         } catch (Exception e) {
-            System.err.println("[AppSearch] Scan error: " + e.getMessage());
+            DebugLogger.log("[AppSearch] Scan error: " + e.getMessage());
         }
         return result;
     }
@@ -843,18 +844,8 @@ public class KeysController {
         refreshGrid(keyGrid);
     }
 
-    private static java.io.PrintWriter debugLog;
-    static {
-        try {
-            String home = System.getProperty("user.home");
-            debugLog = new java.io.PrintWriter(
-                new java.io.FileWriter(home + "/.axionpad/debug.log", true), true);
-        } catch (Exception e) { debugLog = null; }
-    }
     private static void dbg(String msg) {
-        String line = java.time.LocalDateTime.now() + " " + msg;
-        System.err.println(line);
-        if (debugLog != null) debugLog.println(line);
+        DebugLogger.log("[KeysController] " + msg);
     }
 
     private void saveKey() {
@@ -909,8 +900,7 @@ public class KeysController {
             dbg("[saveKey] onSaveSuccess() OK");
         } catch (Throwable t) {
             dbg("[saveKey] EXCEPTION: " + t.getClass().getName() + " — " + t.getMessage());
-            t.printStackTrace();
-            if (debugLog != null) t.printStackTrace(debugLog);
+            DebugLogger.log("[KeysController] saveKey failure", t);
         }
     }
 

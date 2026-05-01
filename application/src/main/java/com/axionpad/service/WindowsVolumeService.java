@@ -8,6 +8,7 @@ import com.sun.jna.ptr.PointerByReference;
 
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Contrôle le volume Windows via WASAPI (Core Audio API).
@@ -52,7 +53,13 @@ public class WindowsVolumeService {
 
     private final ExecutorService comThread;
     private volatile long lastApplyNs = 0;
+    private volatile long lastErrorLogNs = 0;
     private static final long MIN_INTERVAL_NS = 50_000_000L; // 20 Hz max
+    private static final long ERROR_LOG_INTERVAL_NS = 5_000_000_000L; // 5 s
+
+    // Latest-value slot: only the most recent snapshot is ever processed,
+    // preventing comThread queue buildup that causes multi-second latency.
+    private final AtomicReference<int[]> pendingSnap = new AtomicReference<>();
 
     // Buffer GUID réutilisé (thread comThread uniquement — appels séquentiels)
     private final Guid.GUID gBuf = new Guid.GUID();
@@ -105,7 +112,13 @@ public class WindowsVolumeService {
         if (now - lastApplyNs < MIN_INTERVAL_NS) return;
         lastApplyNs = now;
         final int[] snap = raw.clone();
-        comThread.submit(() -> doApply(snap, configs));
+        pendingSnap.set(snap);
+        // CAS ensures only the most recent snap is processed; stale queued
+        // tasks bail out immediately, preventing latency from queue buildup.
+        comThread.submit(() -> {
+            if (!pendingSnap.compareAndSet(snap, null)) return;
+            doApply(snap, configs);
+        });
     }
 
     /**
@@ -125,7 +138,9 @@ public class WindowsVolumeService {
                 case "system" -> toggleSystemSoundsMute();
                 default       -> toggleProcessMute(target.trim());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logErrorThrottled("[VOL] Echec toggleMute pour cible '" + target + "'", e);
+        }
     }
 
     private void toggleEndpointMute(int eDataFlow) {
@@ -181,6 +196,12 @@ public class WindowsVolumeService {
             initialized = false;
         });
         comThread.shutdown();
+        try {
+            comThread.awaitTermination(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            DebugLogger.log("[VOL] Interruption durant close()", e);
+        }
     }
 
     // ── Application des volumes (sur comThread) ───────────────────────────
@@ -188,7 +209,11 @@ public class WindowsVolumeService {
     private void doApply(int[] raw, List<SliderConfig> configs) {
         if (!initialized) return;
         for (int i = 0; i < Math.min(raw.length, configs.size()); i++) {
-            float level = Math.max(0f, Math.min(1f, raw[i] / 1023f));
+            float linear = Math.max(0f, Math.min(1f, raw[i] / 1023f));
+            // Invert: physical bottom (ADC=0) → 100%, physical top (ADC=1023) → 0%
+            // x^1.5 audio taper: gentler curve, audible from ~10% travel
+            float level = 1.0f - linear;
+            level = (float) Math.pow(level, 1.5);
             String ch = configs.get(i).getChannel();
             if (ch == null || ch.isBlank()) continue;
             try {
@@ -198,8 +223,9 @@ public class WindowsVolumeService {
                     case "system" -> applySystemSounds(level);
                     default       -> applyProcessVolume(ch.trim(), level);
                 }
-            } catch (Exception ignored) {
-                // Erreurs silencieuses par cycle (ex : processus fermé)
+            } catch (Exception e) {
+                // Évite le spam: un log max toutes les 5s.
+                logErrorThrottled("[VOL] Echec apply volume canal '" + ch + "'", e);
             }
         }
     }
@@ -426,4 +452,11 @@ public class WindowsVolumeService {
     }
 
     private static String hex(int hr) { return String.format("0x%08X", hr); }
+
+    private void logErrorThrottled(String message, Exception e) {
+        long now = System.nanoTime();
+        if (now - lastErrorLogNs < ERROR_LOG_INTERVAL_NS) return;
+        lastErrorLogNs = now;
+        DebugLogger.log(message, e);
+    }
 }
