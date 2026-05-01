@@ -222,11 +222,19 @@ public class OpenRgbServer {
 
     // ── JSON helpers ──────────────────────────────────────────
 
-    private JsonObject parseJson(String body) {
-        if (body == null || body.isBlank()) {
-            throw new JsonParseException("Empty JSON body");
+    private JsonObject parseJson(String body) throws JsonParseException {
+        try {
+            if (body == null || body.isBlank()) {
+                throw new JsonParseException("Empty JSON body");
+            }
+            JsonObject obj = GSON.fromJson(body, JsonObject.class);
+            if (obj == null) {
+                throw new JsonParseException("Invalid JSON format");
+            }
+            return obj;
+        } catch (JsonSyntaxException e) {
+            throw new JsonParseException("Malformed JSON: " + e.getMessage());
         }
-        return GSON.fromJson(body, JsonObject.class);
     }
 
     private int getInt(JsonObject obj, String key, int def) {

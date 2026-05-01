@@ -11,12 +11,18 @@ import java.util.Arrays;
 
 public class Main {
 
-    private static final File LOG = new File("C:\\temp\\axionpad_debug.log");
+    private static final File LOG = Path.of(System.getProperty("user.home"), ".axionpad", "debug.log").toFile();
 
     public static void main(String[] args) {
-        System.setProperty("prism.order", "sw");
+        System.setProperty("prism.order", "sw"); 
 
-        log("JVM Started");
+        try {
+            Files.createDirectories(LOG.getParentFile().toPath());
+        } catch (IOException e) {
+            System.err.println("Failed to create log directory: " + e.getMessage());
+        }
+
+        DebugLogger.log("JVM Started");
         log("java.version        = " + System.getProperty("java.version"));
         log("java.home           = " + System.getProperty("java.home"));
         log("os.arch             = " + System.getProperty("os.arch"));

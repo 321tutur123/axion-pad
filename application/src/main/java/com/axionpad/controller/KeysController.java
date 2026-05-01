@@ -843,9 +843,7 @@ public class KeysController {
         refreshGrid(keyGrid);
     }
 
-    private static void dbg(String msg) {
-        DebugLogger.log("[KeysController] " + msg);
-    }
+    // Debug logging removed for production
 
     private void saveKey() {
         if (selectedKey < 0) {
