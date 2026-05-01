@@ -140,7 +140,7 @@ public class WindowsVolumeService {
                 default       -> toggleProcessMute(target.trim() + ".exe");
             }
         } catch (Exception e) {
-            logErrorThrottled("[VOL] Echec toggleMute pour cible '" + target + "'", e);
+            DebugLogger.log("[VolumeService] Failed to toggle mute for target '" + target + "'", e);
         }
     }
 
