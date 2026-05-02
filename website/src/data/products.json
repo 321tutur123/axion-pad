@@ -1,0 +1,490 @@
+{
+  "products": [
+    {
+      "id": "axion-pad-standard",
+      "slug": "axion-pad-standard",
+      "name": "Axion Pad Standard",
+      "tagline": "Le macro pad essentiel pour ton workflow",
+      "description": "12 touches mécaniques + 4 potentiomètres sur RP2040. Boîtier imprimé en 3D, firmware CircuitPython.",
+      "longDescription": "L'Axion Pad Standard est le point d'entrée parfait dans l'univers des macro pads programmables. Avec ses 12 touches mécaniques Cherry MX et ses 4 potentiomètres ALPS, il te permet de contrôler n'importe quelle application en un geste. Le boîtier est imprimé en 3D en PLA par défaut, personnalisable à la commande. Le couvercle supérieur peut recevoir une gravure en creux (extrusion négative) : texte court ou logo officiel Axion ; un logo entièrement personnalisé est réalisé à partir de ton fichier vectoriel après validation de la commande.",
+      "price": 7999,
+      "comparePrice": 9999,
+      "category": "macro-pads",
+      "badge": "Best-seller",
+      "stock": 25,
+      "imagePath": "/images/products/axion-pad-standard.jpg",
+      "options": [
+        {
+          "id": "casing",
+          "label": "Boîtier",
+          "type": "radio",
+          "choices": [
+            { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
+            { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
+            { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available":false }
+          ]
+        },
+        {
+          "id": "color",
+          "label": "Couleur boîtier",
+          "type": "color",
+          "choices": [
+            { "value": "black",  "label": "Noir mat",             "color": "#1a1a1a", "available": true },
+            { "value": "white",  "label": "Blanc cassé",          "color": "#e8e0d0", "available": true },
+            { "value": "purple", "label": "Violet deep",          "color": "#5b21b6", "available": true, "badge": "Limité" },
+            { "value": "gray",   "label": "Gris sidéral",         "color": "#6b7280", "available": true },
+            { "value": "custom", "label": "Couleur custom (RAL)", "color": "linear-gradient(135deg,#f43f5e,#8b5cf6,#06b6d4)", "priceAdd": 1500, "available": true }
+          ]
+        },
+        {
+          "id": "lid_engraving",
+          "label": "Couvercle — gravure en creux",
+          "type": "lidEngraving",
+          "textFieldId": "lid_engraving_text",
+          "textMaxLength": 16,
+          "choices": [
+            { "value": "none", "label": "Sans personnalisation", "priceAdd": 0, "available": true },
+            { "value": "text", "label": "Texte gravé (extrusion négative)", "priceAdd": 900, "available": true },
+            { "value": "logo-axion", "label": "Logo Axion Pad (officiel)", "priceAdd": 600, "available": true },
+            { "value": "logo-custom", "label": "Logo perso — fichier vectoriel après commande", "priceAdd": 1999, "available": true, "badge": "Vectoriel" }
+          ]
+        },
+        {
+          "id": "switches",
+          "label": "Switches",
+          "type": "radio",
+          "choices": [
+            { "value": "mx-red",          "label": "Cherry MX Red — Linéaire",          "priceAdd": 0,   "available": true, "badge": "Populaire" },
+            { "value": "mx-brown",        "label": "Cherry MX Brown — Tactile",         "priceAdd": 0,   "available": true },
+            { "value": "mx-silent-red",   "label": "Cherry MX Silent Red — Silencieux", "priceAdd": 600, "available": true },
+            { "value": "mx-silent-brown", "label": "Cherry MX Silent Brown",            "priceAdd": 600, "available": true },
+            { "value": "mx-blue",         "label": "Cherry MX Blue — Clicky",           "priceAdd": 0,   "available": true }
+          ]
+        },
+        {
+          "id": "firmware",
+          "label": "Firmware",
+          "type": "select",
+          "choices": [
+            { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
+            { "value": "kmk",           "label": "KMK Firmware",                  "available": false},
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available": false, "badge": "Beta" }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "MCU",            "value": "RP2040 Dual-core 133 MHz" },
+        { "label": "Touches",        "value": "12 × Cherry MX" },
+        { "label": "Potentiomètres", "value": "4 × ALPS RK09L" },
+        { "label": "Connecteur",     "value": "USB-C Gen 2" },
+        { "label": "Boîtier",        "value": "PLA 3D (autres options dispo)" },
+        { "label": "Couvercle",      "value": "Option gravure en creux (texte ou logo)" },
+        { "label": "Dimensions",     "value": "120 × 80 × 22 mm" },
+        { "label": "Poids",          "value": "~145 g (boîtier PLA)" },
+        { "label": "Compatibilité",  "value": "Windows / macOS / Linux" },
+        { "label": "Firmware",       "value": "CircuitPython open-source" }
+      ],
+      "includes": [
+        "1 × Axion Pad assemblé",
+        "1 × Câble USB-C 1m",
+        "Firmware pré-installé",
+        "Guide de configuration (PDF)",
+        "Instructions gravure logo perso (e-mail après commande si option choisie)"
+      ]
+    },
+    {
+      "id": "axion-pad-pro",
+      "slug": "axion-pad-pro",
+      "name": "Axion Pad Pro",
+      "tagline": "Version premium avec boîtier aluminium CNC",
+      "description": "Boîtier aluminium CNC anodisé, RGB underglow, switches premium.",
+      "longDescription": "L'Axion Pad Pro pousse l'expérience encore plus loin avec un boîtier usiné CNC en aluminium anodisé. Le RGB underglow ajoute une ambiance lumineuse sous le pad, synchronisable avec ton setup.",
+      "price": 12999,
+      "comparePrice": 15999,
+      "category": "macro-pads",
+      "badge": "Bientôt",
+      "comingSoon": true,
+      "stock": 12,
+      "imagePath": "/images/products/axion-pad-pro.jpg",
+      "options": [
+        {
+          "id": "color",
+          "label": "Couleur boîtier",
+          "type": "color",
+          "choices": [
+            { "value": "black-ano",  "label": "Noir anodisé",   "color": "#0f0f0f", "available": true },
+            { "value": "silver",     "label": "Argent brossé",  "color": "#c0c0c0", "available": true },
+            { "value": "space-gray", "label": "Space Gray",     "color": "#4a4a4a", "available": true },
+            { "value": "gold",       "label": "Champagne Gold", "color": "#d4af37", "available": true, "badge": "Limité" }
+          ]
+        },
+        {
+          "id": "switches",
+          "label": "Switches",
+          "type": "radio",
+          "choices": [
+            { "value": "mx-red",          "label": "Cherry MX Red — Linéaire",          "priceAdd": 0,   "available": true, "badge": "Populaire" },
+            { "value": "mx-brown",        "label": "Cherry MX Brown — Tactile",         "priceAdd": 0,   "available": true },
+            { "value": "mx-silent-red",   "label": "Cherry MX Silent Red — Silencieux", "priceAdd": 600, "available": true },
+            { "value": "mx-silent-brown", "label": "Cherry MX Silent Brown",            "priceAdd": 600, "available": true },
+            { "value": "mx-blue",         "label": "Cherry MX Blue — Clicky",           "priceAdd": 0,   "available": true }
+          ]
+        },
+        {
+          "id": "rgb",
+          "label": "RGB Underglow",
+          "type": "radio",
+          "choices": [
+            { "value": "rgb-on",  "label": "Activé (16 LEDs WS2812B)", "priceAdd": 0,    "available": true, "badge": "Inclus" },
+            { "value": "rgb-off", "label": "Sans RGB",                  "priceAdd": -800, "available": true }
+          ]
+        },
+        {
+          "id": "firmware",
+          "label": "Firmware",
+          "type": "select",
+          "choices": [
+            { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
+            { "value": "kmk",           "label": "KMK Firmware",                  "available":  false },
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available":  false, "badge": "Beta" }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "MCU",            "value": "RP2040 Dual-core 133 MHz" },
+        { "label": "Touches",        "value": "12 × Cherry MX" },
+        { "label": "Potentiomètres", "value": "4 × ALPS RK09L" },
+        { "label": "Boîtier",        "value": "Aluminium 6061 CNC anodisé" },
+        { "label": "RGB",            "value": "16 LEDs WS2812B underglow" },
+        { "label": "Connecteur",     "value": "USB-C Gen 2 + port TRRS" },
+        { "label": "Dimensions",     "value": "122 × 82 × 20 mm" },
+        { "label": "Poids",          "value": "~320 g" }
+      ],
+      "includes": [
+        "1 × Axion Pad Pro assemblé",
+        "1 × Câble USB-C tressé 1.5m",
+        "1 × Set de 12 keycaps translucides",
+        "Firmware pré-installé",
+        "Certificat de calibration"
+      ]
+    },
+    {
+      "id": "axion-pad-mini",
+      "slug": "axion-pad-mini",
+      "name": "Axion Pad Mini",
+      "tagline": "Format ultracompact pour setup minimaliste",
+      "description": "6 touches dans un format minimaliste 3×2. Idéal pour les raccourcis essentiels.",
+      "longDescription": "L'Axion Pad Mini concentre l'essentiel en 6 touches mécaniques. Format 3×2 ultra-compact, il se glisse partout et se configure en quelques minutes.",
+      "price": 5999,
+      "category": "macro-pads",
+      "comingSoon": true,
+      "stock": 0,
+      "imagePath": "/images/products/axion-pad-mini.jpg",
+      "options": [
+        {
+          "id": "casing",
+          "label": "Boîtier",
+          "type": "radio",
+          "choices": [
+            { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
+            { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
+            { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": false }
+          ]
+        },
+        {
+          "id": "color",
+          "label": "Couleur boîtier",
+          "type": "color",
+          "choices": [
+            { "value": "black",  "label": "Noir mat",             "color": "#1a1a1a", "available": true },
+            { "value": "white",  "label": "Blanc cassé",          "color": "#e8e0d0", "available": true },
+            { "value": "purple", "label": "Violet deep",          "color": "#5b21b6", "available": true, "badge": "Limité" },
+            { "value": "gray",   "label": "Gris sidéral",         "color": "#6b7280", "available": true },
+            { "value": "custom", "label": "Couleur custom (RAL)", "color": "linear-gradient(135deg,#f43f5e,#8b5cf6,#06b6d4)", "priceAdd": 1500, "available": true }
+          ]
+        },
+        {
+          "id": "switches",
+          "label": "Switches",
+          "type": "radio",
+          "choices": [
+            { "value": "mx-red",          "label": "Cherry MX Red — Linéaire",          "priceAdd": 0,   "available": true, "badge": "Populaire" },
+            { "value": "mx-brown",        "label": "Cherry MX Brown — Tactile",         "priceAdd": 0,   "available": true },
+            { "value": "mx-silent-red",   "label": "Cherry MX Silent Red — Silencieux", "priceAdd": 600, "available": true },
+            { "value": "mx-silent-brown", "label": "Cherry MX Silent Brown",            "priceAdd": 600, "available": true },
+            { "value": "mx-blue",         "label": "Cherry MX Blue — Clicky",           "priceAdd": 0,   "available": true }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "MCU",     "value": "RP2040" },
+        { "label": "Touches", "value": "6 × Cherry MX" },
+        { "label": "Boîtier", "value": "PLA 3D (par défaut)" },
+        { "label": "Format",  "value": "3×2 touches" },
+        { "label": "Dims",    "value": "70 × 55 × 20 mm" }
+      ],
+      "includes": [
+        "1 × Axion Pad Mini",
+        "1 × Câble USB-C 1m",
+        "Firmware pré-installé"
+      ]
+    },
+    {
+      "id": "axion-pad-xl",
+      "slug": "axion-pad-xl",
+      "name": "Axion Pad XL",
+      "tagline": "Studio grade — 16 touches + écran OLED",
+      "description": "4×4 touches, 6 potentiomètres, écran OLED 128×32 intégré.",
+      "longDescription": "Pour les créatifs qui veulent tout contrôler. L'Axion Pad XL embarque 16 touches, 6 potentiomètres et un écran OLED affichant les mappings en temps réel.",
+      "price": 17999,
+      "comparePrice": 19999,
+      "category": "macro-pads",
+      "comingSoon": true,
+      "stock": 8,
+      "imagePath": "/images/products/axion-pad-xl.jpg",
+      "options": [
+        {
+          "id": "casing",
+          "label": "Boîtier",
+          "type": "radio",
+          "choices": [
+            { "value": "pla",      "label": "PLA 3D (par défaut)",  "priceAdd": 0,    "badge": "Inclus",  "available": true },
+            { "value": "petg",     "label": "PETG 3D — Renforcé",   "priceAdd": 800,  "available": true },
+            { "value": "abs",      "label": "ABS 3D — Résistant",   "priceAdd": 1200, "available": true },
+            { "value": "aluminum", "label": "CNC Aluminium",        "priceAdd": 5000, "badge": "Premium", "available": false }
+          ]
+        },
+        {
+          "id": "color",
+          "label": "Couleur boîtier",
+          "type": "color",
+          "choices": [
+            { "value": "black",  "label": "Noir mat",             "color": "#1a1a1a", "available": true },
+            { "value": "white",  "label": "Blanc cassé",          "color": "#e8e0d0", "available": true },
+            { "value": "purple", "label": "Violet deep",          "color": "#5b21b6", "available": true, "badge": "Limité" },
+            { "value": "gray",   "label": "Gris sidéral",         "color": "#6b7280", "available": true },
+            { "value": "custom", "label": "Couleur custom (RAL)", "color": "linear-gradient(135deg,#f43f5e,#8b5cf6,#06b6d4)", "priceAdd": 1500, "available": true }
+          ]
+        },
+        {
+          "id": "switches",
+          "label": "Switches",
+          "type": "radio",
+          "choices": [
+            { "value": "mx-red",          "label": "Cherry MX Red — Linéaire",          "priceAdd": 0,   "available": true, "badge": "Populaire" },
+            { "value": "mx-brown",        "label": "Cherry MX Brown — Tactile",         "priceAdd": 0,   "available": true },
+            { "value": "mx-silent-red",   "label": "Cherry MX Silent Red — Silencieux", "priceAdd": 600, "available": true },
+            { "value": "mx-silent-brown", "label": "Cherry MX Silent Brown",            "priceAdd": 600, "available": true },
+            { "value": "mx-blue",         "label": "Cherry MX Blue — Clicky",           "priceAdd": 0,   "available": true }
+          ]
+        },
+        {
+          "id": "oled",
+          "label": "Écran OLED",
+          "type": "radio",
+          "choices": [
+            { "value": "oled-128",  "label": "OLED 128×32 (inclus)", "priceAdd": 0,     "available": true, "badge": "Inclus" },
+            { "value": "oled-none", "label": "Sans écran",           "priceAdd": -1500, "available": true }
+          ]
+        },
+        {
+          "id": "firmware",
+          "label": "Firmware",
+          "type": "select",
+          "choices": [
+            { "value": "circuitpython", "label": "CircuitPython (recommandé)",     "available": true },
+            { "value": "kmk",           "label": "KMK Firmware",                  "available":  false },
+            { "value": "qmk-compat",    "label": "QMK-compatible (expérimental)", "available":  false, "badge": "Beta" }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "MCU",            "value": "RP2040 Dual-core 133 MHz" },
+        { "label": "Touches",        "value": "16 × Cherry MX (4×4)" },
+        { "label": "Potentiomètres", "value": "6 × ALPS RK09L" },
+        { "label": "Écran",          "value": "OLED 128×32 I2C" },
+        { "label": "Boîtier",        "value": "PLA 3D (par défaut)" },
+        { "label": "Connecteur",     "value": "USB-C Gen 2" },
+        { "label": "Dims",           "value": "180 × 110 × 25 mm" }
+      ],
+      "includes": [
+        "1 × Axion Pad XL",
+        "1 × Câble USB-C 1.5m",
+        "Firmware pré-installé",
+        "Support inclinable 15°"
+      ]
+    },
+    {
+      "id": "axion-kit-diy",
+      "slug": "axion-kit-diy",
+      "name": "Kit DIY Axion",
+      "tagline": "Construis ton propre macro pad",
+      "description": "PCB, RP2040 et composants fournis. Boîtier STL inclus pour impression 3D.",
+      "longDescription": "Le kit DIY te fourni tout le nécessaire : PCB nu RP2040, composants (potentiomètres, résistances, connecteur USB-C), et les fichiers STL du boîtier pour l'imprimer toi-même. Soudage requis.",
+      "price": 4999,
+      "category": "kits",
+      "stock": 15,
+      "imagePath": "/images/products/axion-kit-diy.jpg",
+      "options": [
+        {
+          "id": "assembly",
+          "label": "Niveau d'assemblage",
+          "type": "radio",
+          "choices": [
+            { "value": "kit-bare",     "label": "Kit nu (composants + PCB)",             "priceAdd": 0,    "available": true },
+            { "value": "kit-soldered", "label": "Composants pré-soudés + PCB",           "priceAdd": 1500, "available": true, "badge": "Gain de temps" },
+            { "value": "kit-full",     "label": "Kit complet pré-assemblé sans boîtier", "priceAdd": 2500, "available": true }
+          ]
+        },
+        {
+          "id": "switches-kit",
+          "label": "Switches (optionnel)",
+          "type": "radio",
+          "choices": [
+            { "value": "no-switches",  "label": "Sans switches (BYOS)",   "priceAdd": 0,    "available": true },
+            { "value": "mx-red-kit",   "label": "+ Cherry MX Red × 12",   "priceAdd": 1800, "available": true },
+            { "value": "mx-brown-kit", "label": "+ Cherry MX Brown × 12", "priceAdd": 1800, "available": true }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "PCB",     "value": "2 couches FR4, RP2040" },
+        { "label": "STL",     "value": "Fichiers inclus (impression 3D)" },
+        { "label": "Soudage", "value": "Requis (kit nu)" },
+        { "label": "Outils",  "value": "Fer à souder recommandé" }
+      ],
+      "includes": [
+        "1 × PCB Axion Pad",
+        "Tous les composants CMS",
+        "1 × RP2040 pré-flashé",
+        "4 × Potentiomètres ALPS",
+        "Fichiers STL boîtier (Impression 3D)",
+        "Guide d'assemblage PDF"
+      ]
+    },
+    {
+      "id": "kit-pcb",
+      "slug": "kit-pcb",
+      "name": "Kit PCB seul",
+      "tagline": "PCB RP2040 pour projets custom",
+      "description": "PCB RP2040 nu 2 couches. Soudage requis.",
+      "longDescription": "Le PCB seul pour les makers qui veulent construire un boîtier entièrement custom. Tout-monté côté SMD, tu n'as qu'à souder les switches et les potentiomètres.",
+      "price": 2299,
+      "category": "kits",
+      "stock": 30,
+      "imagePath": "/images/products/kit-pcb.jpg",
+      "options": [
+        {
+          "id": "pcb-version",
+          "label": "Version PCB",
+          "type": "radio",
+          "choices": [
+            { "value": "v1", "label": "V1 — Version originale",        "priceAdd": 0,   "available": true },
+            { "value": "v3", "label": "V3 — Pins espacées (amélioré)", "priceAdd": 300, "available": true, "badge": "Recommandé" }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "MCU",     "value": "RP2040" },
+        { "label": "Couches", "value": "2 couches FR4" },
+        { "label": "Dims",    "value": "80 × 60 mm" },
+        { "label": "Flash",   "value": "2 MB QSPI" }
+      ],
+      "includes": [
+        "1 × PCB Axion Pad",
+        "1 × RP2040 pré-soudé"
+      ]
+    },
+    {
+      "id": "cable-usbc",
+      "slug": "cable-usbc",
+      "name": "Câble USB-C Tressé",
+      "tagline": "Câble premium pour Axion Pad",
+      "description": "USB-C vers USB-A tressé 1.8m. Compatible Axion Pad.",
+      "longDescription": "Câble USB-C tressé haute qualité, compatible avec tous les modèles Axion Pad. Gaine tressée renforcée, connecteurs plaqués or.",
+      "price": 1299,
+      "category": "accessories",
+      "stock": 50,
+      "imagePath": "/images/products/cable-usbc.jpg",
+      "options": [
+        {
+          "id": "length",
+          "label": "Longueur",
+          "type": "radio",
+          "choices": [
+            { "value": "1m",   "label": "1 m",   "priceAdd": -200, "available": true },
+            { "value": "1.8m", "label": "1.8 m", "priceAdd": 0,    "available": true, "badge": "Standard" },
+            { "value": "3m",   "label": "3 m",   "priceAdd": 400,  "available": true }
+          ]
+        },
+        {
+          "id": "cable-color",
+          "label": "Couleur",
+          "type": "color",
+          "choices": [
+            { "value": "black",  "label": "Noir",   "color": "#1a1a1a", "available": true },
+            { "value": "white",  "label": "Blanc",  "color": "#f0f0f0", "available": true },
+            { "value": "purple", "label": "Violet", "color": "#7c3aed", "available": true }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "Type",        "value": "USB-C → USB-A" },
+        { "label": "Gaine",       "value": "Tressé nylon renforcé" },
+        { "label": "Connecteurs", "value": "Plaqués or 24K" },
+        { "label": "Débit",       "value": "USB 2.0 480 Mbit/s" }
+      ],
+      "includes": [
+        "1 × Câble USB-C tressé"
+      ]
+    },
+    {
+      "id": "keycaps-custom",
+      "slug": "keycaps-custom",
+      "name": "Kit Keycaps Custom",
+      "tagline": "12 keycaps translucides pour Axion Pad",
+      "description": "Set de 12 keycaps en PBT translucide pour rétroéclairage.",
+      "longDescription": "Keycaps en PBT double-shot translucide, compatibles Cherry MX et clones. Idéales pour les builds avec rétroéclairage RGB.",
+      "price": 2499,
+      "category": "accessories",
+      "stock": 20,
+      "imagePath": "/images/products/keycaps-custom.jpg",
+      "options": [
+        {
+          "id": "keycap-profile",
+          "label": "Profil",
+          "type": "radio",
+          "choices": [
+            { "value": "oem", "label": "OEM (hauteur standard)", "priceAdd": 0,   "available": true },
+            { "value": "dsa", "label": "DSA (hauteur uniforme)", "priceAdd": 300, "available": true },
+            { "value": "xda", "label": "XDA — Flat",             "priceAdd": 300, "available": true }
+          ]
+        },
+        {
+          "id": "keycap-color",
+          "label": "Coloris",
+          "type": "color",
+          "choices": [
+            { "value": "clear",  "label": "Transparent",         "color": "rgba(255,255,255,0.15)", "available": true },
+            { "value": "smoke",  "label": "Fumé",                "color": "#374151", "available": true },
+            { "value": "purple", "label": "Violet translucide",  "color": "#5b21b6", "available": true },
+            { "value": "white",  "label": "Blanc laiteux",       "color": "#e5e7eb", "available": true }
+          ]
+        }
+      ],
+      "specs": [
+        { "label": "Matériau",      "value": "PBT double-shot" },
+        { "label": "Compatibilité", "value": "Cherry MX + clones" },
+        { "label": "Quantité",      "value": "12 keycaps" },
+        { "label": "Inscription",   "value": "Sans (blank)" }
+      ],
+      "includes": [
+        "12 × Keycaps PBT",
+        "Outil de retrait"
+      ]
+    }
+    
+  ]
+}

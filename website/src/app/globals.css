@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg:          #080810;
+  --color-bg-soft:     #0c0c1a;
+  --color-bg-muted:    #10101e;
+  --color-bg-card:     rgba(255, 255, 255, 0.04);
+  --color-bg-card-alt: rgba(255, 255, 255, 0.07);
+  --color-text:        #ececf4;
+  --color-text-mute:   #6868a0;
+  --color-accent:      #e8622a;
+  --color-accent-hover:#d45525;
+  --color-accent-lt:   rgba(232, 98, 42, 0.12);
+  --color-accent-muted:rgba(232, 98, 42, 0.06);
+  --color-border:      rgba(255, 255, 255, 0.08);
+  --color-nav-bg:      rgba(8, 8, 16, 0.88);
+  --radius-btn:        100px;
+  --radius-card:       16px;
+  --font-main:         var(--font-inter, 'Inter', system-ui, sans-serif);
+}
+
+@theme inline {
+  --color-bg:         #080810;
+  --color-bg-card:    rgba(255, 255, 255, 0.04);
+  --color-accent:     #e8622a;
+  --color-accent-lt:  rgba(232, 98, 42, 0.12);
+  --color-muted:      #6868a0;
+  --color-anthracite: #ececf4;
+  --font-sans:        var(--font-inter, 'Inter', system-ui, sans-serif);
+}
+
+html {
+  background: var(--color-bg);
+}
+
+body {
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Fond animé global ─────────────────────────────────────── */
+.bg-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--color-bg);
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  will-change: transform;
+}
+
+/* Orbe orange / brand — haut gauche */
+.bg-orb-1 {
+  width: 700px;
+  height: 700px;
+  left: -200px;
+  top: -150px;
+  background: radial-gradient(circle, rgba(232, 98, 42, 0.22) 0%, transparent 70%);
+  animation: orbDrift1 30s ease-in-out infinite;
+}
+
+/* Orbe violet / indigo — droite */
+.bg-orb-2 {
+  width: 600px;
+  height: 600px;
+  right: -150px;
+  top: 22%;
+  background: radial-gradient(circle, rgba(108, 92, 231, 0.16) 0%, transparent 70%);
+  animation: orbDrift2 38s ease-in-out infinite;
+}
+
+/* Orbe cyan — bas */
+.bg-orb-3 {
+  width: 850px;
+  height: 550px;
+  left: 12%;
+  bottom: -280px;
+  background: radial-gradient(circle, rgba(0, 160, 200, 0.1) 0%, transparent 70%);
+  animation: orbDrift3 46s ease-in-out infinite;
+}
+
+@keyframes orbDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(130px, 90px) scale(1.1); }
+  66%       { transform: translate(-40px, 160px) scale(0.93); }
+}
+
+@keyframes orbDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(-100px, -80px) scale(1.12); }
+  72%       { transform: translate(80px, 70px) scale(0.94); }
+}
+
+@keyframes orbDrift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-110px, -100px) scale(1.14); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb { animation: none; }
+}
+
+/* ── Fond scène 3D ────────────────────────────────────────── */
+.scene-3d-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+@keyframes scene-3d-bg-shift {
+  0%   { background-position: 12% 28%; }
+  50%  { background-position: 88% 72%; }
+  100% { background-position: 12% 28%; }
+}
+
+@keyframes scene-3d-blob-a {
+  0%, 100% { transform: translate(-6%, 4%) scale(1); }
+  40%       { transform: translate(14%, -10%) scale(1.12); }
+  70%       { transform: translate(4%, 12%) scale(0.96); }
+}
+
+@keyframes scene-3d-blob-b {
+  0%, 100% { transform: translate(4%, -6%) scale(1.05); }
+  45%       { transform: translate(-16%, 8%) scale(1); }
+  80%       { transform: translate(8%, -4%) scale(1.08); }
+}
+
+.scene-3d-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 100% 80% at 30% 40%, rgba(232, 98, 42, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 90%  70% at 75% 65%, rgba(108, 92, 231, 0.09) 0%, transparent 50%),
+    radial-gradient(ellipse 85%  60% at 55% 90%, rgba(0, 160, 200, 0.06) 0%, transparent 48%),
+    radial-gradient(ellipse 70%  50% at 95% 20%, rgba(108, 92, 231, 0.07) 0%, transparent 42%),
+    transparent;
+  background-size: 220% 220%;
+  background-repeat: no-repeat;
+  animation: scene-3d-bg-shift 32s ease-in-out infinite;
+}
+
+.scene-3d-atmosphere::before,
+.scene-3d-atmosphere::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(56px);
+  opacity: 0.75;
+  will-change: transform;
+}
+
+.scene-3d-atmosphere::before {
+  width: min(72vw, 520px);
+  height: min(72vw, 520px);
+  left: -8%;
+  top: 18%;
+  background: radial-gradient(circle, rgba(108, 92, 231, 0.22) 0%, rgba(108, 92, 231, 0) 68%);
+  animation: scene-3d-blob-a 26s ease-in-out infinite;
+}
+
+.scene-3d-atmosphere::after {
+  width: min(68vw, 480px);
+  height: min(68vw, 480px);
+  right: -12%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(232, 98, 42, 0.18) 0%, rgba(232, 98, 42, 0) 65%);
+  animation: scene-3d-blob-b 34s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-3d-atmosphere {
+    animation: none;
+    background-size: 100% 100%;
+    background-position: 50% 50%;
+  }
+  .scene-3d-atmosphere::before,
+  .scene-3d-atmosphere::after { animation: none; }
+}
+
+.scene-3d-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ── Boutons ──────────────────────────────────────────────── */
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-btn);
+  padding: 14px 32px;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  letter-spacing: 0.01em;
+  border: none;
+  transition: background 0.2s ease, transform 0.15s ease, opacity 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-accent:hover {
+  background: var(--color-accent-hover);
+  opacity: 0.95;
+}
+.btn-accent:active { transform: scale(0.97); }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-mute);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.btn-ghost:hover { color: var(--color-text); }
+
+/* ── Cartes ───────────────────────────────────────────────── */
+.card {
+  background: var(--color-bg-card);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 4px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.13);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Badge ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-accent-lt);
+  color: var(--color-accent);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border: 0.5px solid rgba(232, 98, 42, 0.28);
+}
+
+@media (max-width: 768px) {
+  section { padding-top: 60px !important; padding-bottom: 60px !important; }
+  .btn-accent { width: 100%; justify-content: center; }
+}
